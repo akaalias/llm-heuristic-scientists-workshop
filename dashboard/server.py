@@ -220,9 +220,13 @@ def _code_from_py(text: str) -> str:
 
 # ---- schedule Gantt (inline SVG, Tufte palette) ---------------------------
 
-# muted, distinguishable order colours (ochre, teal, rust, violet, sage, …)
+# muted order hues: a pale tint fills the bar (quiet — lengths dominate) with
+# the saturated hue as a thin border + the arrival/due lines. Tufte: colour
+# carries the data without shouting; the dish number reads in ink on the tint.
 ORDER_COLORS = ["#8a6a1e", "#3f6e6e", "#8c2f1f", "#5a4b8a", "#4a6b3a",
                 "#9b6a8a", "#2f5a8c", "#a8762e", "#6b6a60", "#5e7a7a"]
+PALE_COLORS  = ["#e3d6b0", "#cddedc", "#e8c9bf", "#d6cfe6", "#d3ddc4",
+                "#e6d2dd", "#cdd9e8", "#ecd8b8", "#dcdad0", "#d4dede"]
 
 
 def _order_of(step: str) -> int:
@@ -292,6 +296,7 @@ def gantt_svg(sched: dict) -> str:
 
     oids = sorted({_order_of(e["step"]) for e in entries})
     color = {oid: ORDER_COLORS[i % len(ORDER_COLORS)] for i, oid in enumerate(oids)}
+    pale  = {oid: PALE_COLORS[i % len(PALE_COLORS)] for i, oid in enumerate(oids)}
 
     W, L, R, T, B, rowH = 720, 84, 14, 10, 26, 22
     x0, x1 = L, W - R
@@ -315,14 +320,18 @@ def gantt_svg(sched: dict) -> str:
         cy = T + y * rowH
         g.append(f'<text class="gy" x="{L-8}" y="{cy+rowH/2+3:.1f}" text-anchor="end">{html.escape(label)}</text>')
         for e in items:
+            oid, dish = _order_of(e["step"]), _dish_of(e["step"])
             bx, bw = xf(e["start"]), max(1.2, xf(e["end"]) - xf(e["start"]))
             by, bh = cy + 3, rowH - 6
-            c = color[_order_of(e["step"])]
+            name = e.get("dish_name") or e.get("step", "")
+            tip = (f'{name} — order o{oid}, dish {dish+1} · {e["station"]} · '
+                   f't {_fmtnum(e["start"])}–{_fmtnum(e["end"])}')
             g.append(f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bw:.1f}" height="{bh}" rx="1.5" '
-                     f'fill="{c}" stroke="#33312b" stroke-width="0.5"/>')
+                     f'fill="{pale[oid]}" stroke="{color[oid]}" stroke-width="1">'
+                     f'<title>{html.escape(tip)}</title></rect>')
             if bw >= 12:
                 g.append(f'<text class="gd" x="{bx+bw/2:.1f}" y="{by+bh/2+3:.1f}" '
-                         f'text-anchor="middle">{_dish_of(e["step"])+1}</text>')
+                         f'text-anchor="middle">{dish+1}</text>')
     g.append(f'<line class="ga" x1="{x0}" y1="{plot_bottom}" x2="{x1}" y2="{plot_bottom}"/>')
     return (f'<svg class="gantt" viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" '
             f'role="img" aria-label="schedule gantt">{"".join(g)}</svg>')

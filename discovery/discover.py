@@ -28,7 +28,7 @@ from problem_definition.evaluate  import evaluate
 from problem_definition.scenarios import TRAINING
 from heuristics.discovered        import RUNS_CSV, save_iteration
 from util.infra                   import ScheduleEntry
-from discovery.placer             import PriorityFn, construct
+from discovery.placer             import PriorityFn, construct, init_state
 from discovery.prompts            import (
     SYSTEM, describe_prompt, extract_code, initial_prompt, parse_description, refine_prompt,
 )
@@ -150,12 +150,18 @@ def discover(model: str = MODEL, base_url: str | None = None) -> None:
         # executing the heuristic itself (successful iterations only).
         schedule_data = None
         if schedule is not None and value is not None:
+            # map each step id to its dish name from the materialized graph
+            # (SCENARIO.orders are OrderSpecs whose `dishes` are just name strings)
+            _state = init_state(SCENARIO.orders, SCENARIO.kitchen)
+            dish_name = {s.id: s.dish.name
+                         for o in _state.orders for d in o.dishes for s in d.steps}
             schedule_data = {
                 "horizon": max((e.end for e in schedule), default=0),
                 "orders":  [{"id": o.id, "arrival": o.arrival, "due": o.due}
                             for o in SCENARIO.orders],
                 "entries": [{"step": e.step, "station": e.station,
-                             "start": e.start, "end": e.end} for e in schedule],
+                             "start": e.start, "end": e.end,
+                             "dish_name": dish_name.get(e.step, "")} for e in schedule],
             }
 
         parents = []
