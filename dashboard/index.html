@@ -34,7 +34,7 @@ body{
 }
 
 /* ---- header ------------------------------------------------------------- */
-.dash-head{max-width:90vw;margin:0 auto;padding:48px 0 6px;}
+.dash-head{max-width:66.67vw;margin:0 auto;padding:48px 0 6px;}
 .eyebrow{font:italic 16px/1 var(--serif);color:var(--accent);letter-spacing:.01em;margin-bottom:13px;}
 .dash-head h1{font-weight:400;font-size:34px;line-height:1.12;letter-spacing:-.01em;margin:0 0 8px;}
 .dash-head .sub{color:var(--muted);font-style:italic;font-size:18px;margin:0 0 14px;}
@@ -54,7 +54,7 @@ body{
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 
 /* ---- the live chart — inline SVG, no libraries -------------------------- */
-.dash-wrap{max-width:90vw;margin:0 auto;padding:4px 0 64px;}
+.dash-wrap{max-width:66.67vw;margin:0 auto;padding:4px 0 64px;}
 .chart-card{border-top:1px solid var(--rule);padding:16px 0 4px;margin-top:18px;}
 #chart{width:100%;height:auto;display:block;}
 #chart text{font:13px/1 var(--serif);fill:var(--muted);font-feature-settings:"onum" 1;}
@@ -62,7 +62,7 @@ body{
 #chart .axis{stroke:var(--ink);stroke-width:1;}
 #chart .bestline{fill:none;stroke:var(--ink);stroke-width:1.6;}
 #chart .pt-kept{fill:var(--ink);}
-#chart .pt-disc{fill:var(--disc);}
+#chart .pt-disc{fill:var(--disc);opacity:.6;}
 #chart .pt-failed{stroke:var(--accent);stroke-width:1.6;fill:none;}
 #chart .target{stroke:var(--accent);stroke-width:1;stroke-dasharray:4 4;opacity:.85;}
 #chart .tlab{fill:var(--accent);font-style:italic;}
@@ -117,7 +117,7 @@ tbody tr:hover{background:#f7f3e3;}
 </header>
 <div class="dash-wrap">
   <div class="chart-card">
-    <svg id="chart" viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid meet" role="img"
+    <svg id="chart" viewBox="0 0 1000 288" preserveAspectRatio="xMidYMid meet" role="img"
          aria-label="total lateness per experiment over time"></svg>
   </div>
   <div class="tbl-card">
@@ -134,7 +134,7 @@ tbody tr:hover{background:#f7f3e3;}
 // ============================================================================
 
 // ---- chart geometry & helpers ---------------------------------------------
-const VB = {W:1000, H:420, L:58, R:18, T:18, B:36};
+const VB = {W:1000, H:288, L:54, R:20, T:14, B:30};
 
 function niceNum(range, round){
   const exp = Math.floor(Math.log10(range || 1));
@@ -169,16 +169,20 @@ function renderChart(points, target){
 
   const tgt  = (typeof target === "number") ? target : 0;
   const succ = points.filter(p => p.y != null).map(p => p.y);
-  const dmin = Math.min(0, tgt);
-  let   dmax = Math.max(succ.length ? Math.max(...succ) : 1, tgt);
-  dmax = dmin + (dmax - dmin || 1) * 1.08;
+  const lo   = Math.min(0, tgt);
+  const hi   = Math.max(succ.length ? Math.max(...succ) : 1, tgt);
+  const span = (hi - lo) || 1;
+  const dmin = lo - span * 0.08;   // headroom so 0 / target / best lift off the axis
+  const dmax = hi + span * 0.10;
   const n = points.length;
   const xFor = (i) => n <= 1 ? (x0 + x1) / 2 : x0 + (x1 - x0) * i / (n - 1);
   const yFor = (v) => y1 - (v - dmin) / (dmax - dmin) * (y1 - y0);
 
   let g = "";
-  // horizontal gridlines + y labels
-  for (const t of niceTicks(dmin, dmax, 4)){
+  // horizontal gridlines + y labels (skip the one that coincides with the
+  // target — its own dashed line + label already carries that value)
+  for (const t of niceTicks(lo, hi, 4)){
+    if (Math.abs(t - tgt) < span * 1e-3) continue;
     const y = yFor(t);
     g += `<line class="grid" x1="${x0}" y1="${y}" x2="${x1}" y2="${y}"/>`
        + `<text x="${x0-9}" y="${y+4}" text-anchor="end">${fmt(t)}</text>`;
@@ -205,11 +209,11 @@ function renderChart(points, target){
   points.forEach((p, i) => {
     const x = xFor(i);
     if (p.kind === "failed")
-      g += `<path class="pt-failed" d="${xMark(x, y0+7, 4)}"/>`;
+      g += `<path class="pt-failed" d="${xMark(x, y0+6, 3.5)}"/>`;
     else if (p.kind === "kept")
-      g += `<circle class="pt-kept" cx="${x}" cy="${yFor(p.y)}" r="4.5"/>`;
+      g += `<circle class="pt-kept" cx="${x}" cy="${yFor(p.y)}" r="4"/>`;
     else
-      g += `<circle class="pt-disc" cx="${x}" cy="${yFor(p.y)}" r="3.2"/>`;
+      g += `<circle class="pt-disc" cx="${x}" cy="${yFor(p.y)}" r="2.6"/>`;
   });
   // x-axis caption
   g += `<text class="xlab" x="${(x0+x1)/2}" y="${H-7}" text-anchor="middle">experiment →</text>`;

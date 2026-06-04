@@ -44,7 +44,6 @@ COLUMNS = [
     ("total_lateness", "Lateness", "num"),
     ("status",         "Status",   ""),
     ("timestamp",      "Time",     "faint"),
-    ("file",           "File",     "mono faint"),
 ]
 
 
