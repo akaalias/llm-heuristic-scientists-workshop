@@ -34,6 +34,7 @@ from urllib.parse import parse_qs, quote, urlparse
 HERE        = Path(__file__).parent
 TEMPLATE    = HERE / "index.html"
 GRID_TMPL   = HERE / "grid.html"
+LINEAGE_TMPL = HERE / "lineage.html"
 DEFAULT_CSV = HERE.parent / "heuristics" / "discovered" / "runs.csv"
 
 POLL_S      = 1.0   # how often the SSE loop checks the CSV for changes
@@ -465,6 +466,46 @@ def render_page(template: str, csv_path: Path, target: float) -> str:
             .replace("<!--CHARTDATA-->", chart))
 
 
+def lineage_data(rows: list[dict]) -> dict:
+    """Nodes for the lineage graph, in discovery (experiment-number) order. Each
+    node carries its key, n, title, lateness, kind (kept/discarded/failed, like
+    the chart), and the parent keys it was derived from."""
+    def n_of(r):
+        s = str(r.get("n", ""))
+        return int(s) if s.isdigit() else 0
+    best = None
+    nodes = []
+    for r in sorted(rows, key=n_of):
+        val = _to_float(r.get("total_lateness", ""))
+        if r.get("status", "").startswith("failed") or val is None:
+            kind = "failed"
+        elif best is None or val <= best:
+            best, kind = val, "kept"
+        else:
+            kind = "discarded"
+        nodes.append({
+            "key": _row_key(r), "n": r.get("n", ""),
+            "title": r.get("title", "") or "Untitled",
+            "summary": r.get("summary", "") or "",
+            "lateness": val, "kind": kind,
+            "parents": [p for p in (r.get("parents", "") or "").split(";") if p],
+        })
+    return {"nodes": nodes}
+
+
+def render_lineage_page(template: str, csv_path: Path, target: float) -> str:
+    rows = load_rows(csv_path)
+    data = lineage_data(rows)
+    data["target"] = target
+    n = len(data["nodes"])
+    sub = (f"{n} experiment{'' if n == 1 else 's'}, left → right in discovery order; "
+           "each arc links an experiment to the parent it built on. Hover to trace a "
+           "bloodline; click to open it on the dashboard." if n else "No experiments yet.")
+    return (template
+            .replace("<!--LINEAGEDATA-->", json.dumps(data))
+            .replace("<!--SUB-->", html.escape(sub)))
+
+
 def render_grid_page(template: str, csv_path: Path) -> str:
     rows = load_rows(csv_path)
     n = sum(1 for r in rows if load_schedule(csv_path.parent, r.get("file", "")))
@@ -496,15 +537,18 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path.startswith("/detail"):
             self.serve_detail()
         elif self.path in ("/grid", "/grid.html"):
-            self.serve_grid()
+            self.serve_static_page(GRID_TMPL, render_grid_page)
+        elif self.path in ("/lineage", "/lineage.html"):
+            self.serve_static_page(LINEAGE_TMPL, render_lineage_page, with_target=True)
         elif self.path in ("/", "/index.html"):
             self.serve_page()
         else:
             self.send_error(404)
 
-    def serve_grid(self):
+    def serve_static_page(self, tmpl, render, with_target=False):
         try:
-            page = render_grid_page(GRID_TMPL.read_text(), self.csv_path)
+            page = (render(tmpl.read_text(), self.csv_path, self.target) if with_target
+                    else render(tmpl.read_text(), self.csv_path))
         except Exception as exc:
             self.send_error(500, f"render failed: {type(exc).__name__}: {exc}")
             return

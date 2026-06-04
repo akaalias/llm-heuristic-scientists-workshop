@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1100">
+<title>Heuristic Discovery — Experiment Lineage</title>
+<style>
+/* Shares the dashboard's Tufte system. The lineage is a dependency-free inline
+   SVG: experiments left→right in discovery order, y = total_lateness, arcs from
+   each experiment to the parent(s) it built on. */
+:root{
+  --paper:#fffff8; --ink:#111111; --muted:#6b6a60; --faint:#9b998c;
+  --rule:#d9d5c3; --rule-soft:#ece9da; --accent:#8c2f1f; --ochre:#8a6a1e; --disc:#b9b6a6;
+  --serif:"Palatino","Palatino Linotype","Book Antiqua","URW Palladio L",Georgia,serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;}
+html{background:var(--paper);}
+body{margin:0;background:var(--paper);color:var(--ink);
+     font:18px/1.6 var(--serif);font-feature-settings:"onum" 1,"liga" 1;
+     -webkit-font-smoothing:antialiased;}
+
+.dash-head{max-width:66.67vw;margin:0 auto;padding:48px 0 6px;}
+.eyebrow{font:italic 16px/1 var(--serif);color:var(--accent);letter-spacing:.01em;margin-bottom:13px;}
+.dash-head h1{font-weight:400;font-size:34px;line-height:1.12;letter-spacing:-.01em;margin:0 0 8px;}
+.dash-head .sub{color:var(--muted);font-style:italic;font-size:18px;margin:0 0 10px;max-width:64ch;}
+.nav{font-size:15px;margin:0 0 14px;}
+.nav a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;}
+.nav a:hover{border-bottom-color:var(--accent);}
+.nav a:not(:last-child)::after{content:" · ";color:var(--faint);border:0;}
+
+.wrap{max-width:66.67vw;margin:0 auto;padding:8px 0 64px;}
+.legend{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:14px;color:var(--muted);margin:10px 0 4px;}
+.legend .k{display:inline-flex;align-items:center;gap:7px;}
+.legend .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.legend .dot.kept{background:var(--ink);} .legend .dot.disc{background:var(--disc);}
+.legend .x{color:var(--accent);font-weight:700;line-height:1;}
+.legend .arc{width:18px;height:9px;border-bottom:1px solid var(--rule);display:inline-block;
+             border-radius:0 0 9px 9px;}
+.tbl-card{border-top:1.5px solid var(--ink);margin-top:14px;padding-top:6px;}
+
+/* lineage svg */
+#lin{width:100%;height:auto;display:block;}
+#lin text{font:12px/1 var(--serif);fill:var(--muted);}
+#lin .gg{stroke:var(--rule-soft);stroke-width:1;}
+#lin .ax{stroke:var(--ink);stroke-width:1;}
+#lin .tg{stroke:var(--accent);stroke-width:1;stroke-dasharray:4 4;opacity:.85;}
+#lin .tl{fill:var(--accent);font-style:italic;}
+#lin .yl{fill:var(--faint);}
+#lin .xl{fill:var(--faint);font-feature-settings:"smcp" 1;text-transform:uppercase;letter-spacing:.05em;}
+#lin .edge{fill:none;stroke:var(--rule);stroke-width:1;}
+#lin .nd{cursor:pointer;}
+#lin .nk{fill:var(--ink);}
+#lin .ndd{fill:var(--disc);}
+#lin .nf{stroke:var(--accent);stroke-width:1.6;fill:none;}
+#lin .hit{cursor:pointer;}
+/* dim everything, then re-light the hovered bloodline (order: lit wins) */
+#lin.dim .nd,#lin.dim .edge{opacity:.16;}
+#lin.dim .nd.lit{opacity:1;}
+#lin.dim .edge.lit{opacity:1;stroke:var(--ink);stroke-width:1.5;}
+#lin .nd.lit.nk{r:5.5;}
+
+.empty{padding:28px 0;color:var(--muted);font-style:italic;}
+
+/* hover tooltip */
+#tip{position:fixed;z-index:30;pointer-events:none;opacity:0;transition:opacity .08s;
+     background:var(--paper);color:var(--ink);border:1px solid var(--rule);
+     box-shadow:0 4px 18px rgba(60,50,30,.15);border-radius:4px;
+     font:13px/1.45 var(--serif);padding:8px 11px;max-width:340px;}
+#tip .tt-title{font-weight:700;margin-bottom:2px;}
+#tip .tt-meta{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;}
+#tip .tt-rule{color:#33312b;font-style:italic;font-size:12.5px;margin-top:5px;
+              border-top:1px solid var(--rule-soft);padding-top:5px;}
+</style>
+</head>
+<body>
+<header class="dash-head">
+  <div class="eyebrow">LLM Heuristic Scientists · experiment lineage</div>
+  <h1>Experiment lineage</h1>
+  <p class="sub"><!--SUB--></p>
+  <div class="nav"><a href="/">&larr; Dashboard</a><a href="/grid">Schedule grid</a></div>
+  <div class="legend">
+    <span class="k"><span class="dot kept"></span>Kept (best so far)</span>
+    <span class="k"><span class="dot disc"></span>Worse than best</span>
+    <span class="k"><span class="x">&times;</span>Failed</span>
+    <span class="k"><span class="arc"></span>Derived from</span>
+    <span class="k">y = total lateness · lower is better</span>
+  </div>
+</header>
+<div class="wrap">
+  <div class="tbl-card"><div id="diagram"></div></div>
+</div>
+
+<div id="tip"></div>
+<script id="lineage-data" type="application/json"><!--LINEAGEDATA--></script>
+<script>
+(function () {
+  let data = {};
+  try { data = JSON.parse(document.getElementById("lineage-data").textContent || "{}"); } catch (e) {}
+  const nodes = data.nodes || [];
+  const host = document.getElementById("diagram");
+  const tip = document.getElementById("tip");
+  if (!host) return;
+  if (!nodes.length) { host.innerHTML = '<p class="empty">No experiments yet — run discovery.</p>'; return; }
+
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const fmt = (t) => Number.isInteger(t) ? String(t) : t.toFixed(1);
+  const xMark = (x, y, r) => `M${x-r},${y-r}L${x+r},${y+r}M${x+r},${y-r}L${x-r},${y+r}`;
+  function niceTicks(min, max, c){ if (max <= min) max = min + 1;
+    const raw = (max-min)/Math.max(1,c-1), mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1,2,5,10].map(m => m*mag).find(s => s >= raw); const out = [];
+    for (let v = Math.ceil(min/step)*step; v <= max+1e-9; v += step) out.push(Math.round(v*1000)/1000);
+    return out; }
+
+  // adjacency
+  const byKey = {}; nodes.forEach(n => byKey[n.key] = n);
+  const childrenOf = {}; nodes.forEach(n => childrenOf[n.key] = []);
+  const parentsOf  = {}; nodes.forEach(n => parentsOf[n.key] = (n.parents || []).filter(p => byKey[p]));
+  nodes.forEach(n => parentsOf[n.key].forEach(p => childrenOf[p].push(n.key)));
+  const walk = (k, nbr, acc) => { (nbr[k] || []).forEach(x => { if (!acc.has(x)) { acc.add(x); walk(x, nbr, acc); } }); return acc; };
+
+  // geometry — y = lateness (0 / target near bottom), failed pinned to the top
+  const W = 1000, L = 54, R = 18, T = 16, B = 30, H = 360;
+  const x0 = L, x1 = W - R, y0 = T, y1 = H - B;
+  const tgt = (typeof data.target === "number") ? data.target : 0;
+  const vals = nodes.filter(n => n.lateness != null).map(n => n.lateness);
+  const lo = Math.min(0, tgt), hi = Math.max(vals.length ? Math.max(...vals) : 1, tgt);
+  const span = (hi - lo) || 1, dmin = lo - span*0.08, dmax = hi + span*0.10;
+  const n = nodes.length;
+  const xFor = (i) => n <= 1 ? (x0+x1)/2 : x0 + (x1-x0)*i/(n-1);
+  const yFor = (v) => y1 - (v - dmin)/(dmax - dmin)*(y1 - y0);
+  const pos = {}; nodes.forEach((nd, i) => { pos[nd.key] = { x: xFor(i), y: nd.lateness != null ? yFor(nd.lateness) : y0 + 6 }; });
+
+  let g = "";
+  for (const t of niceTicks(lo, hi, 4)){ if (Math.abs(t - tgt) < span*1e-3) continue; const y = yFor(t);
+    g += `<line class="gg" x1="${x0}" y1="${y}" x2="${x1}" y2="${y}"/><text class="yl" x="${x0-9}" y="${y+4}" text-anchor="end">${fmt(t)}</text>`; }
+  g += `<line class="ax" x1="${x0}" y1="${y0}" x2="${x0}" y2="${y1}"/><line class="ax" x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}"/>`;
+  const yt = yFor(tgt);
+  g += `<line class="tg" x1="${x0}" y1="${yt}" x2="${x1}" y2="${yt}"/><text class="tl" x="${x0-9}" y="${yt+4}" text-anchor="end">target ${fmt(tgt)}</text>`;
+  // arcs (parent → child)
+  nodes.forEach(nd => parentsOf[nd.key].forEach(pk => {
+    const a = pos[pk], b = pos[nd.key]; if (!a || !b) return;
+    const mx = (a.x + b.x)/2, my = Math.min(a.y, b.y) - Math.min(70, Math.abs(b.x - a.x)*0.35 + 12);
+    g += `<path class="edge" data-c="${esc(nd.key)}" data-p="${esc(pk)}" d="M${a.x},${a.y} Q${mx},${my} ${b.x},${b.y}"/>`;
+  }));
+  // nodes
+  nodes.forEach(nd => { const p = pos[nd.key];
+    if (nd.kind === "failed") g += `<path class="nd nf" data-key="${esc(nd.key)}" d="${xMark(p.x, p.y, 4)}"/>`;
+    else if (nd.kind === "kept") g += `<circle class="nd nk" data-key="${esc(nd.key)}" cx="${p.x}" cy="${p.y}" r="4.5"/>`;
+    else g += `<circle class="nd ndd" data-key="${esc(nd.key)}" cx="${p.x}" cy="${p.y}" r="3.2"/>`;
+    g += `<circle class="hit" data-key="${esc(nd.key)}" cx="${p.x}" cy="${p.y}" r="9" fill="transparent"/>`;
+  });
+  g += `<text class="xl" x="${(x0+x1)/2}" y="${H-7}" text-anchor="middle">experiment →</text>`;
+  host.innerHTML = `<svg id="lin" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${g}</svg>`;
+
+  // interaction: hover a node → light its whole bloodline; click → dashboard
+  const svg = document.getElementById("lin");
+  const q = (k) => CSS.escape(k);
+  function lit(key){
+    const set = new Set([key]); walk(key, parentsOf, set); walk(key, childrenOf, set);
+    svg.classList.add("dim");
+    svg.querySelectorAll(".lit").forEach(el => el.classList.remove("lit"));
+    set.forEach(k => svg.querySelectorAll(`.nd[data-key="${q(k)}"]`).forEach(el => el.classList.add("lit")));
+    svg.querySelectorAll(".edge").forEach(e => {
+      if (set.has(e.getAttribute("data-c")) && set.has(e.getAttribute("data-p"))) e.classList.add("lit");
+    });
+  }
+  function unlit(){ svg.classList.remove("dim"); svg.querySelectorAll(".lit").forEach(el => el.classList.remove("lit")); }
+
+  svg.addEventListener("mouseover", e => { const m = e.target.closest("[data-key]"); if (m) lit(m.getAttribute("data-key")); });
+  svg.addEventListener("mouseout",  e => { const m = e.target.closest("[data-key]"); if (m){ unlit(); tip.style.opacity = "0"; } });
+  svg.addEventListener("mousemove", e => {
+    const m = e.target.closest("[data-key]"); if (!m){ tip.style.opacity = "0"; return; }
+    const nd = byKey[m.getAttribute("data-key")]; if (!nd) return;
+    const lat = nd.lateness != null ? `lateness ${fmt(nd.lateness)}` : "failed";
+    tip.innerHTML = `<div class="tt-title">${esc(nd.title)}</div>`
+      + `<div class="tt-meta">#${esc(nd.n)} · ${lat}</div>`
+      + (nd.summary ? `<div class="tt-rule">${esc(nd.summary)}</div>` : "");
+    tip.style.left = (e.clientX + 13) + "px";
+    tip.style.top  = (e.clientY + 15) + "px";
+    tip.style.opacity = "1";
+  });
+  svg.addEventListener("click", e => { const m = e.target.closest("[data-key]");
+    if (m) location.href = "/#exp=" + encodeURIComponent(m.getAttribute("data-key")); });
+})();
+</script>
+</body>
+</html>

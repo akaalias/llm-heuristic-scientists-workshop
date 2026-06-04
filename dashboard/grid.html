@@ -26,6 +26,7 @@ body{margin:0;background:var(--paper);color:var(--ink);
 .nav{font-size:15px;}
 .nav a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;}
 .nav a:hover{border-bottom-color:var(--accent);}
+.nav a:not(:last-child)::after{content:" · ";color:var(--faint);border:0;}
 
 .wrap{max-width:66.67vw;margin:0 auto;padding:4px 0 64px;}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
@@ -49,7 +50,7 @@ svg.thumb{width:100%;height:auto;display:block;}
   <div class="eyebrow">LLM Heuristic Scientists · schedule grid</div>
   <h1>Schedule grid</h1>
   <p class="sub"><!--SUB--></p>
-  <div class="nav"><a href="/">&larr; Dashboard</a></div>
+  <div class="nav"><a href="/">&larr; Dashboard</a><a href="/lineage">Experiment lineage</a></div>
 </header>
 <div class="wrap">
   <!--GRID-->

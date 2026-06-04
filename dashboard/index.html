@@ -41,6 +41,7 @@ body{
 .dash-head .nav{font-size:15px;margin:0 0 14px;}
 .dash-head .nav a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;}
 .dash-head .nav a:hover{border-bottom-color:var(--accent);}
+.dash-head .nav a:not(:last-child)::after{content:" · ";color:var(--faint);border:0;}
 .dash-meta{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;font-size:14px;color:var(--muted);}
 .dash-meta .k{display:inline-flex;align-items:center;gap:7px;}
 .dash-meta .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
@@ -198,7 +199,7 @@ svg.gantt rect[data-tip]:hover{filter:brightness(0.9);}                   /* sli
   <div class="eyebrow">LLM Heuristic Scientists · run log</div>
   <h1>Heuristic discovery progress</h1>
   <p class="sub"><!--SUB--></p>
-  <div class="nav"><a href="/grid">Schedule grid &rarr;</a></div>
+  <div class="nav"><a href="/grid">Schedule grid</a><a href="/lineage">Experiment lineage</a></div>
   <div class="dash-meta">
     <span class="k"><span class="dot kept"></span>Best so far</span>
     <span class="k"><span class="dot disc"></span>Worse than best</span>
