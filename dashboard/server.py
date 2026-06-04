@@ -112,6 +112,27 @@ def render_rows(rows: list[dict]) -> str:
     return "".join(out)
 
 
+def chart_data(rows: list[dict]) -> list[dict]:
+    """One point per iteration, in chronological order, for the live chart.
+
+    Each point is {y, kind}: `y` is total_lateness (None for a failed run),
+    `kind` is 'kept' (set a new running-best), 'discarded' (ran but didn't
+    improve), or 'failed' (errored / produced no score)."""
+    best: float | None = None
+    points = []
+    for r in rows:
+        val = _to_float(r.get("total_lateness", ""))
+        if r.get("status", "").startswith("failed") or val is None:
+            points.append({"y": None, "kind": "failed"})
+            continue
+        if best is None or val < best:
+            best, kind = val, "kept"
+        else:
+            kind = "discarded"
+        points.append({"y": val, "kind": kind})
+    return points
+
+
 def render_table(rows: list[dict]) -> str:
     """The full <table>: a fixed head plus a `#rows` body the stream replaces."""
     head = "".join(f"<th>{html.escape(h)}</th>" for _, h, _ in COLUMNS)
@@ -137,18 +158,21 @@ def load_rows(csv_path: Path) -> list[dict]:
         return list(csv.DictReader(f))
 
 
-def render_page(template: str, csv_path: Path) -> str:
+def render_page(template: str, csv_path: Path, target: float) -> str:
     rows = load_rows(csv_path)
     sub, updated = meta(rows)
+    chart = json.dumps({"points": chart_data(rows), "target": target})
     return (template
             .replace("<!--TABLE-->", render_table(rows))
             .replace("<!--SUB-->", html.escape(sub))
-            .replace("<!--UPDATED-->", html.escape(updated)))
+            .replace("<!--UPDATED-->", html.escape(updated))
+            .replace("<!--CHARTDATA-->", chart))
 
 
 class Handler(BaseHTTPRequestHandler):
-    def __init__(self, *args, csv_path: Path, **kwargs):
+    def __init__(self, *args, csv_path: Path, target: float, **kwargs):
         self.csv_path = csv_path
+        self.target = target
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
@@ -161,7 +185,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def serve_page(self):
         try:
-            page = render_page(TEMPLATE.read_text(), self.csv_path)
+            page = render_page(TEMPLATE.read_text(), self.csv_path, self.target)
         except Exception as exc:  # never let one bad render kill the server
             self.send_error(500, f"render failed: {type(exc).__name__}: {exc}")
             return
@@ -201,6 +225,8 @@ class Handler(BaseHTTPRequestHandler):
                         "rows": render_rows(rows),
                         "sub": sub,
                         "updated": updated,
+                        "chart": chart_data(rows),
+                        "target": self.target,
                     })
                     self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
                     self.wfile.flush()
@@ -224,9 +250,12 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1", help="bind host (default: 127.0.0.1)")
     parser.add_argument("--csv", type=Path, default=DEFAULT_CSV,
                         help=f"runs.csv to read (default: {DEFAULT_CSV})")
+    parser.add_argument("--target", type=float, default=0.0,
+                        help="target lateness drawn as a threshold line (default: 0 = "
+                             "zero lateness, the goal)")
     args = parser.parse_args()
 
-    handler = partial(Handler, csv_path=args.csv)
+    handler = partial(Handler, csv_path=args.csv, target=args.target)
     server = ThreadingHTTPServer((args.host, args.port), handler)
     print(f"dashboard → http://{args.host}:{args.port}  (watching {args.csv})")
     print("Ctrl-C to stop.")

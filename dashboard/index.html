@@ -6,10 +6,10 @@
 <title>Heuristic Discovery — Run Log</title>
 <style>
 /* ============================================================================
-   Tufte-style run log. Cream paper, near-black ink, one rust accent, Palatino
-   serif, old-style figures, thin rules instead of boxes — small-caps tags and
-   ink left-rules instead of coloured pills. Adapted from the FMDiscovery
-   dashboard's shared visual system.
+   Tufte-style run log + live chart. Cream paper, near-black ink, one rust
+   accent, Palatino serif, old-style figures, thin rules instead of boxes —
+   small-caps tags and ink left-rules instead of coloured pills. Adapted from
+   the FMDiscovery dashboard's shared visual system.
    ========================================================================== */
 :root{
   --paper:#fffff8;        /* Tufte cream            */
@@ -20,6 +20,7 @@
   --rule-soft:#ece9da;    /* fainter hairline       */
   --accent:#8c2f1f;       /* ET rust-red, sparingly */
   --ochre:#8a6a1e;        /* secondary data tint    */
+  --disc:#b9b6a6;         /* discarded marks        */
   --serif:"Palatino","Palatino Linotype","Book Antiqua","URW Palladio L",Georgia,serif;
   --mono:ui-monospace,"SF Mono",Menlo,monospace;
 }
@@ -37,15 +38,38 @@ body{
 .eyebrow{font:italic 16px/1 var(--serif);color:var(--accent);letter-spacing:.01em;margin-bottom:13px;}
 .dash-head h1{font-weight:400;font-size:34px;line-height:1.12;letter-spacing:-.01em;margin:0 0 8px;}
 .dash-head .sub{color:var(--muted);font-style:italic;font-size:18px;margin:0 0 14px;}
-.dash-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:14px 26px;font-size:14px;color:var(--muted);}
+.dash-meta{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;font-size:14px;color:var(--muted);}
 .dash-meta .k{display:inline-flex;align-items:center;gap:7px;}
 .dash-meta .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
-.dash-meta .dot.ok{background:var(--ink);}
-.dash-meta .dot.bad{background:var(--accent);}
+.dash-meta .dot.kept{background:var(--ink);}
+.dash-meta .dot.disc{background:var(--disc);}
+.dash-meta .x{color:var(--accent);font-weight:700;line-height:1;}
+.dash-meta .bar{width:16px;height:0;border-top:2px solid var(--ink);display:inline-block;}
+.dash-meta .bar.dash{border-top:2px dashed var(--accent);}
 #updated{color:var(--faint);font-style:italic;margin-left:auto;}
+#live{font-size:13px;}
+#live.on{color:#3f6e6e;}
+#live.on::before{content:"● ";animation:pulse 2s ease-in-out infinite;}
+#live.off{color:var(--faint);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+/* ---- the live chart — inline SVG, no libraries -------------------------- */
+.dash-wrap{max-width:90vw;margin:0 auto;padding:4px 0 64px;}
+.chart-card{border-top:1px solid var(--rule);padding:16px 0 4px;margin-top:18px;}
+#chart{width:100%;height:auto;display:block;}
+#chart text{font:13px/1 var(--serif);fill:var(--muted);font-feature-settings:"onum" 1;}
+#chart .grid{stroke:var(--rule-soft);stroke-width:1;}
+#chart .axis{stroke:var(--ink);stroke-width:1;}
+#chart .bestline{fill:none;stroke:var(--ink);stroke-width:1.6;}
+#chart .pt-kept{fill:var(--ink);}
+#chart .pt-disc{fill:var(--disc);}
+#chart .pt-failed{stroke:var(--accent);stroke-width:1.6;fill:none;}
+#chart .target{stroke:var(--accent);stroke-width:1;stroke-dasharray:4 4;opacity:.85;}
+#chart .tlab{fill:var(--accent);font-style:italic;}
+#chart .xlab{fill:var(--faint);font-feature-settings:"smcp" 1;text-transform:uppercase;letter-spacing:.05em;}
+.chart-empty{color:var(--muted);font-style:italic;padding:34px 0;}
 
 /* ---- the run table — Tufte data table ----------------------------------- */
-.dash-wrap{max-width:90vw;margin:0 auto;padding:4px 0 64px;}
 .tbl-card{border-top:1.5px solid var(--ink);margin-top:26px;}
 table{width:100%;border-collapse:collapse;font-size:14.5px;}
 th,td{text-align:left;padding:9px 14px 9px 0;vertical-align:top;}
@@ -74,13 +98,6 @@ tbody tr:hover{background:#f7f3e3;}
 /* a new row slid in by the live stream gets a brief warm highlight */
 @keyframes rowflash{0%,25%{background:#f0e2c4;}100%{background:transparent;}}
 .row-new td{animation:rowflash 2.2s ease-out;}
-
-/* live-connection indicator — calm, on the right next to the timestamp */
-#live{font-style:normal;font-size:13px;}
-#live.on{color:#3f6e6e;}
-#live.on::before{content:"● ";animation:pulse 2s ease-in-out infinite;}
-#live.off{color:var(--faint);}
-@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 </style>
 </head>
 <body>
@@ -89,22 +106,123 @@ tbody tr:hover{background:#f7f3e3;}
   <h1>Heuristic discovery progress</h1>
   <p class="sub"><!--SUB--></p>
   <div class="dash-meta">
-    <span class="k"><span class="dot ok"></span>Success</span>
-    <span class="k"><span class="dot bad"></span>Failed</span>
-    <span class="k">Ink left-rule = running best (lowest lateness)</span>
+    <span class="k"><span class="dot kept"></span>Kept (new best)</span>
+    <span class="k"><span class="dot disc"></span>Discarded</span>
+    <span class="k"><span class="x">&times;</span>Failed</span>
+    <span class="k"><span class="bar"></span>Running best</span>
+    <span class="k"><span class="bar dash"></span>Target</span>
     <span id="updated"><!--UPDATED--></span>
     <span id="live" class="off"></span>
   </div>
 </header>
 <div class="dash-wrap">
+  <div class="chart-card">
+    <svg id="chart" viewBox="0 0 1000 420" preserveAspectRatio="xMidYMid meet" role="img"
+         aria-label="total lateness per experiment over time"></svg>
+  </div>
   <div class="tbl-card">
     <!--TABLE-->
   </div>
 </div>
+
+<script id="chart-data" type="application/json"><!--CHARTDATA--></script>
 <script>
-// Live updates via Server-Sent Events. Progressive enhancement: if this fails
-// or JS is off, the server-rendered table above still shows current state.
+// ============================================================================
+// Live updates via Server-Sent Events, plus a hand-rolled inline-SVG chart.
+// Progressive enhancement: the table is server-rendered, so it shows current
+// state with JS disabled; the chart + live stream are pure enhancement.
+// ============================================================================
+
+// ---- chart geometry & helpers ---------------------------------------------
+const VB = {W:1000, H:420, L:58, R:18, T:18, B:36};
+
+function niceNum(range, round){
+  const exp = Math.floor(Math.log10(range || 1));
+  const f = (range || 1) / Math.pow(10, exp);
+  const nf = round ? (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10)
+                   : (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10);
+  return nf * Math.pow(10, exp);
+}
+function niceTicks(min, max, count){
+  if (max <= min) max = min + 1;
+  const step = niceNum((max - min) / Math.max(1, count - 1), true);
+  const out = [];
+  for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step)
+    out.push(Math.round(v * 1000) / 1000);
+  return out;
+}
+const fmt = (t) => Number.isInteger(t) ? String(t) : t.toFixed(1);
+const esc = (s) => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+function xMark(x, y, r){ return `M${x-r},${y-r}L${x+r},${y+r}M${x+r},${y-r}L${x-r},${y+r}`; }
+
+function renderChart(points, target){
+  const svg = document.getElementById("chart");
+  if (!svg) return;
+  points = points || [];
+  const {W,H,L,R,T,B} = VB, x0=L, x1=W-R, y0=T, y1=H-B;
+
+  if (!points.length){
+    svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle" class="chart-empty">`
+                  + `no experiments yet</text>`;
+    return;
+  }
+
+  const tgt  = (typeof target === "number") ? target : 0;
+  const succ = points.filter(p => p.y != null).map(p => p.y);
+  const dmin = Math.min(0, tgt);
+  let   dmax = Math.max(succ.length ? Math.max(...succ) : 1, tgt);
+  dmax = dmin + (dmax - dmin || 1) * 1.08;
+  const n = points.length;
+  const xFor = (i) => n <= 1 ? (x0 + x1) / 2 : x0 + (x1 - x0) * i / (n - 1);
+  const yFor = (v) => y1 - (v - dmin) / (dmax - dmin) * (y1 - y0);
+
+  let g = "";
+  // horizontal gridlines + y labels
+  for (const t of niceTicks(dmin, dmax, 4)){
+    const y = yFor(t);
+    g += `<line class="grid" x1="${x0}" y1="${y}" x2="${x1}" y2="${y}"/>`
+       + `<text x="${x0-9}" y="${y+4}" text-anchor="end">${fmt(t)}</text>`;
+  }
+  // axes
+  g += `<line class="axis" x1="${x0}" y1="${y0}" x2="${x0}" y2="${y1}"/>`
+     + `<line class="axis" x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}"/>`;
+  // target threshold
+  const yt = yFor(tgt);
+  g += `<line class="target" x1="${x0}" y1="${yt}" x2="${x1}" y2="${yt}"/>`
+     + `<text class="tlab" x="${x1}" y="${yt-6}" text-anchor="end">target ${fmt(tgt)}</text>`;
+  // running-best step line (carried forward across discarded/failed)
+  let best = null; const bp = [];
+  points.forEach((p, i) => {
+    if (p.y != null) best = (best == null) ? p.y : Math.min(best, p.y);
+    if (best != null) bp.push([xFor(i), yFor(best)]);
+  });
+  if (bp.length){
+    let d = `M${bp[0][0]},${bp[0][1]}`;
+    for (let i = 1; i < bp.length; i++) d += `H${bp[i][0]}V${bp[i][1]}`;
+    g += `<path class="bestline" d="${d}"/>`;
+  }
+  // points: kept (ink), discarded (faint), failed (rust × pinned to the top = worst)
+  points.forEach((p, i) => {
+    const x = xFor(i);
+    if (p.kind === "failed")
+      g += `<path class="pt-failed" d="${xMark(x, y0+7, 4)}"/>`;
+    else if (p.kind === "kept")
+      g += `<circle class="pt-kept" cx="${x}" cy="${yFor(p.y)}" r="4.5"/>`;
+    else
+      g += `<circle class="pt-disc" cx="${x}" cy="${yFor(p.y)}" r="3.2"/>`;
+  });
+  // x-axis caption
+  g += `<text class="xlab" x="${(x0+x1)/2}" y="${H-7}" text-anchor="middle">experiment →</text>`;
+  svg.innerHTML = g;
+}
+
+// ---- live wiring ----------------------------------------------------------
 (function () {
+  // initial render from the data embedded by the server (works even if SSE fails)
+  let init = {};
+  try { init = JSON.parse(document.getElementById("chart-data").textContent || "{}"); } catch (e) {}
+  renderChart(init.points, init.target);
+
   const tbody = document.getElementById("rows");
   const sub   = document.querySelector(".sub");
   const upd   = document.getElementById("updated");
@@ -123,6 +241,7 @@ tbody tr:hover{background:#f7f3e3;}
     tbody.innerHTML = d.rows;
     if (sub) sub.textContent = d.sub;
     if (upd) upd.textContent = d.updated;
+    renderChart(d.chart, d.target);
     // flash only rows we hadn't seen before (the new experiments)
     tbody.querySelectorAll("tr[data-key]").forEach(r => {
       if (!known.has(r.dataset.key)) r.classList.add("row-new");

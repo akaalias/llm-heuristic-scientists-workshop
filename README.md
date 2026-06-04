@@ -180,10 +180,16 @@ appends it. No reload needed. (The table is server-rendered first, so it still
 shows the current state with JavaScript disabled; the live stream is pure
 enhancement.)
 
-One row per iteration, newest first (run, scenario, model, lateness, status,
-time); the running-best rows (lowest lateness so far) are marked with an ink
-left-rule. No charts yet, just the table. Options: `--port`, `--host`,
-`--csv path/to/runs.csv`.
+A live chart sits above the table — `total_lateness` per experiment over
+time, with **kept** (new running-best, ink dots), **discarded** (ran but
+didn't improve, faint dots), and **failed** runs (rust ×), the running-best
+step line, and a dashed **target** threshold (default 0 = zero lateness; set
+your own with `--target`). It's hand-rolled inline SVG — no chart library —
+and redraws from the same live stream.
+
+Below it, one row per iteration, newest first (run, scenario, model, lateness,
+status, time); the running-best rows are also marked with an ink left-rule.
+Options: `--port`, `--host`, `--csv path/to/runs.csv`, `--target LATENESS`.
 
 ## 3. Evaluate any heuristics on every scenario
 
