@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """A tiny, dependency-free dashboard for discovery runs.
 
-Serves a single Tufte-styled page (`index.html`) showing the experiment
-table read from `heuristics/discovered/runs.csv`, newest first.
+Serves three Tufte-styled pages read from `heuristics/discovered/runs.csv`:
+the run log (`/`, table + live chart), the schedule grid (`/grid`), and the
+experiment lineage (`/lineage`). Shared CSS/JS live in `static/` and are
+served from `/static/`.
 
-The page updates itself: the server watches the CSV and pushes new rows over
-Server-Sent Events (the `/events` stream), so a new experiment shows up at the
-top of the table — with a brief highlight — the moment the discovery loop
-appends it. No reload needed. The page is fully server-rendered first, so it
-still shows the current state with JavaScript disabled; the live stream is
-pure enhancement. No charts — just the table.
+The run log updates itself: the server watches the CSV and pushes new rows
+over Server-Sent Events (the `/events` stream), so a new experiment shows up
+at the top of the table — with a brief highlight — the moment the discovery
+loop appends it. No reload needed. Each page is fully server-rendered first,
+so it still shows the current state with JavaScript disabled; the live stream
+and chart are pure enhancement.
 
 Usage
 -----
@@ -35,7 +37,11 @@ HERE        = Path(__file__).parent
 TEMPLATE    = HERE / "index.html"
 GRID_TMPL   = HERE / "grid.html"
 LINEAGE_TMPL = HERE / "lineage.html"
+STATIC_DIR  = HERE / "static"          # shared CSS/JS, served from /static/
 DEFAULT_CSV = HERE.parent / "heuristics" / "discovered" / "runs.csv"
+
+STATIC_TYPES = {".css": "text/css", ".js": "text/javascript",
+                ".svg": "image/svg+xml", ".json": "application/json"}
 
 POLL_S      = 1.0   # how often the SSE loop checks the CSV for changes
 PING_EVERY  = 10    # send an SSE comment every Nth idle poll (detects drops)
@@ -64,6 +70,25 @@ def _row_key(r: dict) -> str:
     return f'{r.get("run_id", "")}|{r.get("iter", "")}'
 
 
+def iter_classified(rows: list[dict]):
+    """Yield (row, kind) for each row in chronological order — the single source
+    of truth for how the table, chart, and lineage colour a run.
+
+    kind is 'kept' (matched or beat the lowest lateness so far, ties included →
+    a running best), 'discarded' (a valid run worse than the best so far), or
+    'failed' (errored / produced no score)."""
+    best: float | None = None
+    for r in rows:
+        val = _to_float(r.get("total_lateness", ""))
+        if r.get("status", "").startswith("failed") or val is None:
+            yield r, "failed"
+        elif best is None or val <= best:
+            best = val
+            yield r, "kept"
+        else:
+            yield r, "discarded"
+
+
 def _status_cell(raw: str) -> str:
     """Render a status value. 'success' → ink small-caps; 'failed:Err' → rust
     small-caps with the error class spelled out."""
@@ -77,27 +102,18 @@ def _status_cell(raw: str) -> str:
 def render_rows(rows: list[dict]) -> str:
     """Render the <tr>s for the table body, newest first.
 
-    `rows` is in CSV (chronological) order. Best-so-far (lowest lateness, ties
-    included) is computed in that order, then the rows are reversed for display
-    so the most recent experiment sits at the top."""
+    `rows` is in CSV (chronological) order; the running best is computed in that
+    order (see `iter_classified`), then the rows are reversed for display so the
+    most recent experiment sits at the top."""
     if not rows:
         return (f'<tr class="placeholder"><td colspan="{len(COLUMNS)}" class="empty">'
                 "No runs yet — start one with "
                 "<code>python -m discovery.discover</code>.</td></tr>")
 
-    # mark each row that matches or beats the best lateness so far (ties
-    # included), computed chronologically
-    best: float | None = None
-    is_best = []
-    for r in rows:
-        val = _to_float(r.get("total_lateness", ""))
-        new_best = val is not None and (best is None or val <= best)
-        if new_best:
-            best = val
-        is_best.append(new_best)
-
+    classified = list(iter_classified(rows))
     out = []
-    for r, best_row in reversed(list(zip(rows, is_best))):  # display newest first
+    for r, kind in reversed(classified):  # display newest first
+        best_row = kind == "kept"
         is_pivot = r.get("pivot") == "1"
         cells = []
         for field, _, cls in COLUMNS:
@@ -126,26 +142,15 @@ def render_rows(rows: list[dict]) -> str:
 def chart_data(rows: list[dict]) -> list[dict]:
     """One point per iteration, in chronological order, for the live chart.
 
-    Each point is {y, kind, key}: `y` is total_lateness (None for a failed
-    run), `kind` is 'kept' (matched or beat the best lateness so far, ties
-    included), 'discarded' (a valid run worse than the best so far), or
-    'failed' (errored / produced no score). `key` matches the table row's
-    data-key, so the chart and table can cross-highlight."""
-    best: float | None = None
-    points = []
-    for r in rows:
-        key = _row_key(r)
-        pv = r.get("pivot") == "1"
-        val = _to_float(r.get("total_lateness", ""))
-        if r.get("status", "").startswith("failed") or val is None:
-            points.append({"y": None, "kind": "failed", "key": key, "pivot": pv})
-            continue
-        if best is None or val <= best:
-            best, kind = val, "kept"
-        else:
-            kind = "discarded"
-        points.append({"y": val, "kind": kind, "key": key, "pivot": pv})
-    return points
+    Each point is {y, kind, key, pivot}: `y` is total_lateness (None for a
+    failed run), `kind` comes from `iter_classified`, and `key` matches the
+    table row's data-key so the chart and table can cross-highlight."""
+    return [{
+        "y": None if kind == "failed" else _to_float(r.get("total_lateness", "")),
+        "kind": kind,
+        "key": _row_key(r),
+        "pivot": r.get("pivot") == "1",
+    } for r, kind in iter_classified(rows)]
 
 
 def render_table(rows: list[dict]) -> str:
@@ -268,6 +273,28 @@ def _pack_slots(items: list[dict]) -> tuple[dict[int, int], int]:
     return slot_of, len(slot_free)
 
 
+def _station_rows(entries: list[dict]) -> list[tuple[str, list[dict]]]:
+    """Pack entries into display rows: one row per station, split into parallel
+    slots when a station runs concurrent steps. Returns [(label, [entry])],
+    where label is 'station' or 'station #slot'. Shared by both Gantt renderers."""
+    rows = []
+    for st in sorted({e["station"] for e in entries}):
+        sub = [e for e in entries if e["station"] == st]
+        slot_of, n = _pack_slots(sub)
+        for slot in range(n):
+            label = f"{st} #{slot}" if n > 1 else st
+            rows.append((label, [sub[j] for j in range(len(sub)) if slot_of[j] == slot]))
+    return rows
+
+
+def _order_palettes(entries: list[dict]) -> tuple[dict[int, str], dict[int, str]]:
+    """(saturated, pale) colour maps keyed by order id, assigned in id order."""
+    oids = sorted({_order_of(e["step"]) for e in entries})
+    color = {oid: ORDER_COLORS[i % len(ORDER_COLORS)] for i, oid in enumerate(oids)}
+    pale  = {oid: PALE_COLORS[i % len(PALE_COLORS)] for i, oid in enumerate(oids)}
+    return color, pale
+
+
 def _gantt_ticks(horizon: float, count: int = 6) -> list[float]:
     if horizon <= 0:
         return [0]
@@ -295,17 +322,8 @@ def gantt_svg(sched: dict) -> str:
     orders = sched.get("orders") or []
     horizon = sched.get("horizon") or max((e["end"] for e in entries), default=1) or 1
 
-    rows = []  # (label, [entry])
-    for st in sorted({e["station"] for e in entries}):
-        sub = [e for e in entries if e["station"] == st]
-        slot_of, n = _pack_slots(sub)
-        for slot in range(n):
-            label = f"{st} #{slot}" if n > 1 else st
-            rows.append((label, [sub[j] for j in range(len(sub)) if slot_of[j] == slot]))
-
-    oids = sorted({_order_of(e["step"]) for e in entries})
-    color = {oid: ORDER_COLORS[i % len(ORDER_COLORS)] for i, oid in enumerate(oids)}
-    pale  = {oid: PALE_COLORS[i % len(PALE_COLORS)] for i, oid in enumerate(oids)}
+    rows = _station_rows(entries)
+    color, pale = _order_palettes(entries)
 
     W, L, R, T, B, rowH = 720, 84, 14, 10, 26, 22
     x0, x1 = L, W - R
@@ -384,16 +402,8 @@ def gantt_thumb(sched: dict) -> str:
     if not entries:
         return ""
     horizon = sched.get("horizon") or max((e["end"] for e in entries), default=1) or 1
-    rows = []
-    for st in sorted({e["station"] for e in entries}):
-        sub = [e for e in entries if e["station"] == st]
-        slot_of, n = _pack_slots(sub)
-        for slot in range(n):
-            rows.append([sub[j] for j in range(len(sub)) if slot_of[j] == slot])
-
-    oids = sorted({_order_of(e["step"]) for e in entries})
-    pale = {oid: PALE_COLORS[i % len(PALE_COLORS)] for i, oid in enumerate(oids)}
-    color = {oid: ORDER_COLORS[i % len(ORDER_COLORS)] for i, oid in enumerate(oids)}
+    rows = _station_rows(entries)            # labels unused here — bars only
+    color, pale = _order_palettes(entries)
 
     W, pad, rowH, barH = 240, 3, 8, 6
     x0, x1 = pad, W - pad
@@ -401,7 +411,7 @@ def gantt_thumb(sched: dict) -> str:
     xf = lambda t: x0 + (t / horizon) * (x1 - x0)
 
     g = []
-    for y, items in enumerate(rows):
+    for y, (_label, items) in enumerate(rows):
         cy = pad + y * rowH
         for e in items:
             bx = xf(e["start"])
@@ -521,22 +531,14 @@ def lineage_data(rows: list[dict]) -> dict:
     def n_of(r):
         s = str(r.get("n", ""))
         return int(s) if s.isdigit() else 0
-    best = None
     nodes = []
-    for r in sorted(rows, key=n_of):
-        val = _to_float(r.get("total_lateness", ""))
-        if r.get("status", "").startswith("failed") or val is None:
-            kind = "failed"
-        elif best is None or val <= best:
-            best, kind = val, "kept"
-        else:
-            kind = "discarded"
+    for r, kind in iter_classified(sorted(rows, key=n_of)):
         title = r.get("title", "") or "Untitled"
         nodes.append({
             "key": _row_key(r), "n": r.get("n", ""),
             "title": title, "symbol": slug(title),
             "summary": r.get("summary", "") or "",
-            "lateness": val, "kind": kind,
+            "lateness": _to_float(r.get("total_lateness", "")), "kind": kind,
             "pivot": r.get("pivot") == "1",
             "parents": [p for p in (r.get("parents", "") or "").split(";") if p],
         })
@@ -587,29 +589,34 @@ class Handler(BaseHTTPRequestHandler):
             self.stream_events()
         elif self.path.startswith("/detail"):
             self.serve_detail()
+        elif self.path.startswith("/static/"):
+            self.serve_static_asset()
         elif self.path in ("/grid", "/grid.html"):
             self.serve_static_page(GRID_TMPL, render_grid_page)
         elif self.path in ("/lineage", "/lineage.html"):
             self.serve_static_page(LINEAGE_TMPL, render_lineage_page, with_target=True)
         elif self.path in ("/", "/index.html"):
-            self.serve_page()
+            self.serve_static_page(TEMPLATE, render_page, with_target=True)
         else:
             self.send_error(404)
+
+    def _respond(self, body: bytes, content_type: str, cache: str = "no-store"):
+        """Write a 200 with the standard headers — always fresh while iterating."""
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", cache)
+        self.end_headers()
+        self.wfile.write(body)
 
     def serve_static_page(self, tmpl, render, with_target=False):
         try:
             page = (render(tmpl.read_text(), self.csv_path, self.target) if with_target
                     else render(tmpl.read_text(), self.csv_path))
-        except Exception as exc:
+        except Exception as exc:  # never let one bad render kill the server
             self.send_error(500, f"render failed: {type(exc).__name__}: {exc}")
             return
-        body = page.encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(body)
+        self._respond(page.encode("utf-8"), "text/html; charset=utf-8")
 
     def serve_detail(self):
         key = (parse_qs(urlparse(self.path).query).get("key") or [""])[0]
@@ -617,26 +624,17 @@ class Handler(BaseHTTPRequestHandler):
         if detail is None:
             self.send_error(404, "no such experiment")
             return
-        body = json.dumps(detail).encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        self._respond(json.dumps(detail).encode("utf-8"), "application/json; charset=utf-8")
 
-    def serve_page(self):
-        try:
-            page = render_page(TEMPLATE.read_text(), self.csv_path, self.target)
-        except Exception as exc:  # never let one bad render kill the server
-            self.send_error(500, f"render failed: {type(exc).__name__}: {exc}")
+    def serve_static_asset(self):
+        """Serve a shared CSS/JS file from static/. Path-traversal safe."""
+        name = urlparse(self.path).path[len("/static/"):]
+        target = (STATIC_DIR / name).resolve()
+        if STATIC_DIR.resolve() not in target.parents or not target.is_file():
+            self.send_error(404)
             return
-        body = page.encode("utf-8")
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")  # always serve fresh while iterating
-        self.end_headers()
-        self.wfile.write(body)
+        ctype = STATIC_TYPES.get(target.suffix, "application/octet-stream")
+        self._respond(target.read_bytes(), f"{ctype}; charset=utf-8")
 
     def stream_events(self):
         """Server-Sent Events: push the rendered rows whenever the CSV changes.
