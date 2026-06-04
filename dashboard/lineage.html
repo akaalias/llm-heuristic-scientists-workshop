@@ -56,11 +56,12 @@ body{margin:0;background:var(--paper);color:var(--ink);
 /* on hover: isolate the ancestry — drop everything else nearly out, then
    re-light the path (immediate parents strongest, distant ancestors medium) */
 #lin.dim .nd,#lin.dim .edge,#lin.dim .nlab{opacity:.07;}
-#lin.dim .nd.lit,#lin.dim .nd.lit-direct{opacity:1;}
-#lin.dim .nlab.lit{opacity:1;fill:var(--muted);}        /* distant ancestors: muted */
+#lin.dim .nd.lit{opacity:.55;}                          /* distant ancestors: light */
+#lin.dim .nd.lit-direct{opacity:1;}                     /* hovered + immediate parents: full */
+#lin.dim .nlab.lit{opacity:1;fill:var(--faint);}        /* distant ancestors: light label */
 #lin.dim .nlab.lit-direct{opacity:1;fill:var(--ink);}   /* hovered + immediate parents: ink */
-#lin.dim .edge.lit{opacity:.65;stroke:var(--ink);stroke-width:1.3;}     /* ancestor edges */
-#lin.dim .edge.lit-direct{opacity:1;stroke:var(--ink);stroke-width:2;}  /* immediate parents */
+#lin.dim .edge.lit{opacity:.4;stroke:var(--muted);stroke-width:1;}      /* ancestor edges: light */
+#lin.dim .edge.lit-direct{opacity:1;stroke:var(--ink);stroke-width:2;}  /* immediate parents: strong */
 
 .empty{padding:28px 0;color:var(--muted);font-style:italic;}
 
