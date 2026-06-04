@@ -1,0 +1,4 @@
+# Keep the library/ directory tracked, but ignore the inspiration notes for now.
+# (Remove the *.md line later to start version-controlling specific libraries.)
+*.md
+!.gitignore
