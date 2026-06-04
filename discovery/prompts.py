@@ -103,20 +103,21 @@ def extract_code(reply: str) -> str:
 
 
 def describe_prompt(code: str) -> str:
-    """Ask the model to describe a heuristic in plain kitchen terms: a short
-    title, a one-line summary, and a fuller paragraph. Returned in a fixed,
-    easily-parsed format."""
+    """Ask the model to name a heuristic and turn it into a memorable, one-line
+    instruction the kitchen team could follow to decide what to cook next.
+    Returned in a fixed, easily-parsed format."""
     return textwrap.dedent(f"""
         Below is a priority heuristic for the restaurant-kitchen scheduler.
-        Describe it for a human reader in plain kitchen terms (orders, dishes,
-        steps, stations like grill/prep, due times, lateness) — describe the
-        BEHAVIOUR and strategy, not the code syntax.
+        Distill it into something a line cook could remember and act on.
 
         Reply in EXACTLY this format and nothing else:
 
-        TITLE: <a short, distinctive name for the strategy, 2-6 words>
-        SUMMARY: <one sentence: what this heuristic does, in plain terms>
-        EXPLANATION: <2-4 sentences on the rule it uses and the idea behind it>
+        TITLE: <a short, distinctive name for the rule, 2-6 words>
+        RULE: <ONE short, memorable instruction the kitchen team can follow to
+               decide which step to cook next — imperative and concrete, in
+               plain kitchen terms (orders, due times, remaining work, busy
+               stations), no code. e.g. "Start the order with the least slack
+               per minute of work still left.">
 
         ```python
         {code}
@@ -124,23 +125,18 @@ def describe_prompt(code: str) -> str:
     """).strip()
 
 
-_TITLE_RE   = re.compile(r"TITLE:\s*(.*?)\s*(?:SUMMARY:|EXPLANATION:|$)", re.DOTALL | re.IGNORECASE)
-_SUMMARY_RE = re.compile(r"SUMMARY:\s*(.*?)\s*(?:EXPLANATION:|$)", re.DOTALL | re.IGNORECASE)
-_EXPLAIN_RE = re.compile(r"EXPLANATION:\s*(.*)", re.DOTALL | re.IGNORECASE)
+_TITLE_RE = re.compile(r"TITLE:\s*(.*?)\s*(?:RULE:|SUMMARY:|$)", re.DOTALL | re.IGNORECASE)
+_RULE_RE  = re.compile(r"(?:RULE|SUMMARY):\s*(.*)", re.DOTALL | re.IGNORECASE)
 
-def parse_description(reply: str) -> tuple[str, str, str]:
-    """Split a describe reply into (title, summary, explanation), each
-    flattened to a single line. Degrades gracefully if the model ignores the
-    format: falls back to the first sentence as title/summary."""
+def parse_description(reply: str) -> tuple[str, str]:
+    """Split a describe reply into (title, rule), each flattened to a single
+    line. Degrades gracefully if the model ignores the format."""
     def grab(rx):
         m = rx.search(reply)
         return " ".join(m.group(1).split()) if m else ""
-    title, summary, explanation = grab(_TITLE_RE), grab(_SUMMARY_RE), grab(_EXPLAIN_RE)
-    if not (title or summary or explanation):
-        flat = " ".join(reply.split())
-        summary = flat[:200]
-        explanation = flat
-    summary = summary or explanation.split(". ")[0][:200]
-    title = title or (summary.split(". ")[0][:60] if summary else "Untitled heuristic")
-    explanation = explanation or summary
-    return title, summary, explanation
+    title, rule = grab(_TITLE_RE), grab(_RULE_RE)
+    if not (title or rule):
+        rule = " ".join(reply.split())[:200]
+    rule = rule or title
+    title = title or (rule.split(". ")[0][:60] if rule else "Untitled heuristic")
+    return title, rule

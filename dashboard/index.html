@@ -156,10 +156,11 @@ tr.detail-row > td{background:#fcfbf2;border-bottom:1.5px solid var(--ink);paddi
 
 /* content column */
 .d-title{font:600 22px/1.22 var(--serif);color:var(--ink);margin:0 0 10px;letter-spacing:-.006em;}
-.d-summary{font:italic 16.5px/1.5 var(--serif);color:#33312b;margin:0 0 16px;max-width:70ch;}
-.d-explain{font-size:15px;line-height:1.64;color:#33312b;margin:0 0 22px;max-width:70ch;}
-.d-code-h{font:600 11px/1.3 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+.d-rule-h,.d-code-h{font:600 11px/1.3 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
           letter-spacing:.06em;color:var(--faint);margin:0 0 7px;}
+.d-rule-h{margin-top:2px;}
+.d-summary{font:italic 17px/1.5 var(--serif);color:#33312b;margin:0 0 22px;max-width:70ch;}
+.d-code-h{margin-top:0;}
 .d-loading{color:var(--muted);font-style:italic;margin:0;}
 
 /* code block + minimal python highlighting */
@@ -374,8 +375,9 @@ function renderChart(points, target, animate){
     const main =
       `<div class="d-main">`
       + `<h3 class="d-title">${esc(d.title)}</h3>`
-      + (d.summary ? `<p class="d-summary">${esc(d.summary)}</p>` : "")
-      + (d.explanation ? `<p class="d-explain">${esc(d.explanation)}</p>` : "")
+      + (d.summary
+          ? `<div class="d-rule-h">Priority rule</div><p class="d-summary">${esc(d.summary)}</p>`
+          : "")
       + (d.code_html
           ? `<div class="d-code-h">Heuristic</div><pre class="code">${d.code_html}</pre>`  // already HTML
           : `<p class="d-loading">no code saved</p>`)

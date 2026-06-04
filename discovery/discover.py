@@ -65,22 +65,22 @@ def normalize_api(url: str | None) -> str | None:
     return url if url.endswith("/v1") else url + "/v1"
 
 
-def describe(client: InferenceClient, model: str, code: str) -> tuple[str, str, str]:
-    """One-off call describing a heuristic in plain terms → (title, summary,
-    explanation). Kept out of the refinement history so it can't steer the next
-    proposal. Never raises — a failed description must not abort the run."""
+def describe(client: InferenceClient, model: str, code: str) -> tuple[str, str]:
+    """One-off call naming a heuristic and distilling it into a memorable
+    kitchen instruction → (title, rule). Kept out of the refinement history so
+    it can't steer the next proposal. Never raises — a failed description must
+    not abort the run."""
     try:
         reply = client.chat_completion(
             messages=[
-                {"role": "system", "content": "You explain kitchen-scheduling heuristics in plain, domain-grounded English."},
+                {"role": "system", "content": "You turn kitchen-scheduling heuristics into memorable rules of thumb a line cook could follow."},
                 {"role": "user",   "content": describe_prompt(code)},
             ],
             model=model, max_tokens=MAX_TOKENS,
         ).choices[0].message.content
         return parse_description(reply)
     except Exception as exc:
-        msg = f"(description unavailable: {type(exc).__name__})"
-        return "Untitled heuristic", msg, msg
+        return "Untitled heuristic", f"(rule unavailable: {type(exc).__name__})"
 
 
 def build_schedule(priority_fn: PriorityFn) -> list[ScheduleEntry]:
@@ -153,7 +153,7 @@ def discover(model: str = MODEL, base_url: str | None = None) -> None:
             if bkey not in parents:
                 parents.append(bkey)
 
-        title, summary, explanation = describe(client, model, code)
+        title, summary = describe(client, model, code)
         print(f"--- {title} ---\n{summary}")
 
         save_iteration(
@@ -166,7 +166,6 @@ def discover(model: str = MODEL, base_url: str | None = None) -> None:
             error          = error_class,
             title          = title,
             summary        = summary,
-            explanation    = explanation,
             parents        = parents,
         )
 

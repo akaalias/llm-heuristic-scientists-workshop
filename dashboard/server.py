@@ -249,7 +249,6 @@ def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
         "symbol": slug(title),
         "title": title,
         "summary": r.get("summary", "") or "",
-        "explanation": r.get("explanation", "") or "",
         "code_html": highlight_py(code) if code else "",
         "parents": parents,
         "lateness": r.get("total_lateness", "") or "",

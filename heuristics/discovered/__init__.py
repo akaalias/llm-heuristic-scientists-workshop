@@ -17,7 +17,7 @@ RUNS_CSV   = HERE / "runs.csv"
 CSV_FIELDS = [
     "n", "timestamp", "run_id", "scenario", "model", "iter",
     "total_lateness", "status", "file",
-    "title", "summary", "explanation", "parents",
+    "title", "summary", "parents",
 ]
 
 
@@ -51,7 +51,6 @@ def save_iteration(
     error:          str   | None,
     title:          str = "",
     summary:        str = "",
-    explanation:    str = "",
     parents:        list[str] | None = None,
 ) -> Path:
     """Save one iteration's code as a .py module and append a summary row
@@ -60,8 +59,8 @@ def save_iteration(
     On success: pass `total_lateness=<value>` and `error=None`.
     On failure: pass `total_lateness=None` and `error=<exception class name>`.
 
-    `title`/`summary`/`explanation` are the human-readable description; `parents`
-    is a list of `run_id|iter` keys this iteration was derived from (provenance).
+    `title` names the rule, `summary` is the one-line kitchen instruction;
+    `parents` is a list of `run_id|iter` keys it was derived from (provenance).
     """
     HERE.mkdir(parents=True, exist_ok=True)
     n = _next_index()
@@ -73,7 +72,7 @@ def save_iteration(
         f"  total_lateness: {total_lateness:.1f}\n" if total_lateness is not None else ""
     )
     title_line   = f"  Title:          {title}\n" if title else ""
-    summary_line = f"  Summary:        {summary}\n" if summary else ""
+    summary_line = f"  Rule:           {summary}\n" if summary else ""
     parents_line = f"  Parents:        {parents_str}\n" if parents_str else ""
     header = (
         f'"""Discovered priority heuristic.\n\n'
@@ -109,7 +108,6 @@ def save_iteration(
             "file":           py_path.name,
             "title":          title,
             "summary":        summary,
-            "explanation":    explanation,
             "parents":        parents_str,
         })
     return py_path
