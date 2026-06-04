@@ -389,12 +389,14 @@ def gantt_thumb(sched: dict) -> str:
 
 def render_grid(rows: list[dict], csv_dir: Path) -> str:
     """Small-multiples grid: one thumbnail per experiment that has a schedule,
-    newest first, each linking back to its row on the dashboard."""
+    best (lowest lateness) first, each linking back to its row on the dashboard."""
+    have = [(r, load_schedule(csv_dir, r.get("file", ""))) for r in rows]
+    have = [(r, s) for r, s in have if s]
+    have.sort(key=lambda rs: _to_float(rs[0].get("total_lateness", "")) if
+              _to_float(rs[0].get("total_lateness", "")) is not None else float("inf"))
+
     cells = []
-    for r in reversed(rows):
-        sched = load_schedule(csv_dir, r.get("file", ""))
-        if not sched:
-            continue
+    for r, sched in have:
         key = _row_key(r)
         title = r.get("title", "") or "Untitled"
         lat = r.get("total_lateness", "") or "—"
@@ -467,7 +469,7 @@ def render_grid_page(template: str, csv_path: Path) -> str:
     rows = load_rows(csv_path)
     n = sum(1 for r in rows if load_schedule(csv_path.parent, r.get("file", "")))
     sub = (f"{n} schedule{'' if n == 1 else 's'} — one thumbnail per experiment, "
-           "newest first. Click any to open it on the dashboard."
+           "best (lowest lateness) first. Click any to open it on the dashboard."
            if n else "No schedules yet.")
     return (template
             .replace("<!--GRID-->", render_grid(rows, csv_path.parent))
