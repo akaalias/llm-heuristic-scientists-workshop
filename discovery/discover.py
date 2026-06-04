@@ -26,12 +26,12 @@ from huggingface_hub import InferenceClient
 from problem_definition.check     import check
 from problem_definition.evaluate  import evaluate
 from problem_definition.scenarios import TRAINING_BATTERY
-from heuristics.discovered        import RUNS_CSV, find_champion, save_iteration
+from heuristics.discovered        import RUNS_CSV, find_champion, prior_attempts, save_iteration
 from util.infra                   import ScheduleEntry
 from discovery.placer             import PriorityFn, construct, init_state
 from discovery.prompts            import (
     SYSTEM, breakout_prompt, carryover_prompt, describe_prompt, extract_code,
-    initial_prompt, parse_description, refine_prompt,
+    hard_breakout_prompt, initial_prompt, parse_description, refine_prompt,
 )
 from discovery.runtime            import compile_priority, time_limit
 
@@ -40,8 +40,10 @@ load_dotenv()
 
 MODEL          = "openai/gpt-oss-120b"  # default: Hugging Face Inference
 ITERATIONS     = 10
-PLATEAU_PATIENCE = 5    # iterations with no improvement → ask for a new approach
+PLATEAU_PATIENCE = 3    # iterations with no improvement → ask for a new approach
+META_PLATEAU_PIVOTS = 2 # consecutive pivots with no global improvement → hard breakout
 SCENARIOS      = TRAINING_BATTERY   # heuristics are scored on the mean across these
+SCEN_BY_NAME   = {sc.name: sc for sc in SCENARIOS}  # name → scenario, for bottleneck lookup
 GANTT_SCENARIO = SCENARIOS[0]       # always the first — keeps the diagram consistent
 EVAL_TIMEOUT_S = 5     # bound buggy priority() so it can't hang the workshop
 MAX_TOKENS     = 1500  # cap on assistant reply length per iteration
@@ -131,18 +133,22 @@ def discover(model: str = MODEL, base_url: str | None = None,
     # found across earlier runs (and link it as iteration 1's parent)
     champion = find_champion()
     if champion and champion["code"]:
+        tried = prior_attempts(exclude_key=champion["key"])  # everything else we've tested
         print(f"carrying over champion {champion['key']} "
-              f"('{champion['title']}', lateness {champion['lateness']:.1f})")
+              f"('{champion['title']}', lateness {champion['lateness']:.1f}); "
+              f"{len(tried)} prior approach(es) catalogued as 'already tried'")
 
     history = [{"role": "system", "content": SYSTEM}]
-    prompt  = (carryover_prompt(GANTT_SCENARIO, champion)
+    prompt  = (carryover_prompt(GANTT_SCENARIO, champion, tried)
                if (champion and champion["code"]) else initial_prompt(GANTT_SCENARIO))
 
-    best_value: float | None = None
-    best_code:  str   | None = None
-    best_iter:  int   | None = None
+    best_value:   float | None = None
+    best_code:    str   | None = None
+    best_iter:    int   | None = None
+    best_samples: list[dict] | None = None   # per-scenario schedules of the current best
     prev_value, prev_error = None, None
     since_improve = 0          # iterations since the best last moved (plateau detector)
+    pivots_since_best = 0      # consecutive pivots since the best last moved (meta-plateau)
     branch_best_iter:  int   | None = None   # best of the CURRENT direction (reset at each pivot)
     branch_best_value: float | None = None
 
@@ -159,11 +165,23 @@ def discover(model: str = MODEL, base_url: str | None = None,
             if since_improve >= PLATEAU_PATIENCE:
                 # stuck in a dead end — keep the plateaued attempt as a parent
                 # (history is retained) but ask for a fundamentally new approach
-                print(f"--- plateau: {since_improve} iterations without improvement → new approach ---")
-                prompt = breakout_prompt(GANTT_SCENARIO, best_value, since_improve)
+                pivot = True             # this experiment is a deliberate change of direction
+                if pivots_since_best >= META_PLATEAU_PIVOTS and best_samples:
+                    # META-plateau: we've already pivoted repeatedly and the global
+                    # best never moved — different signals keep collapsing to the same
+                    # schedule. Stop inventing signals; aim at the bottleneck scenario.
+                    per = [(s["name"], s["lateness"]) for s in best_samples]
+                    bname  = max(per, key=lambda x: x[1])[0]
+                    bscen  = SCEN_BY_NAME.get(bname, GANTT_SCENARIO)
+                    print(f"--- meta-plateau: best {best_value:.1f} unchanged across "
+                          f"{pivots_since_best} pivots → HARD breakout on '{bname}' ---")
+                    prompt = hard_breakout_prompt(bscen, best_value, per)
+                else:
+                    print(f"--- plateau: {since_improve} iterations without improvement → new approach ---")
+                    prompt = breakout_prompt(GANTT_SCENARIO, best_value, since_improve)
+                pivots_since_best += 1  # count this pivot toward the meta-plateau detector
                 since_improve = 0      # give the new direction a fresh patience window
                 branch_best_iter, branch_best_value = None, None  # fresh lineage — drop the old branch
-                pivot = True             # this experiment is a deliberate change of direction
             else:
                 prompt = refine_prompt(GANTT_SCENARIO, prev_value, prev_error, best_value)
 
@@ -196,12 +214,15 @@ def discover(model: str = MODEL, base_url: str | None = None,
             print(f"--- total_lateness = {value:.1f}")
             if best_value is None or value < best_value:
                 best_value, best_code, best_iter = value, code, it
+                best_samples = samples           # remember the schedule that achieves it
                 improved = True
                 print(f"--- new best (iter {it}) ---")
             if branch_best_value is None or value < branch_best_value:
                 branch_best_value, branch_best_iter = value, it   # best of the current direction
 
         since_improve = 0 if improved else since_improve + 1
+        if improved:
+            pivots_since_best = 0   # the global best moved — reset the meta-plateau counter
 
         # Persist the per-sample schedules so the dashboard can draw Gantts
         # without ever executing the heuristic (successful iterations only).

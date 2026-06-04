@@ -58,7 +58,11 @@ def _code_from_py(text: str) -> str:
 def find_champion() -> dict | None:
     """The best heuristic recorded so far across ALL runs (lowest total_lateness
     among successes), with its code read back from its .py. None if there's no
-    prior success. Used to seed a new run — connecting it to the past."""
+    prior success. Used to seed a new run — connecting it to the past.
+
+    On ties (same lowest lateness), the MOST RECENT one wins: rows are read in
+    chronological order and `<=` lets a later equal-scoring success replace an
+    earlier one, so a fresh run carries over the newest champion of its rank."""
     if not RUNS_CSV.exists():
         return None
     with RUNS_CSV.open(newline="") as f:
@@ -71,7 +75,7 @@ def find_champion() -> dict | None:
             lat = float(r.get("total_lateness", ""))
         except (ValueError, TypeError):
             continue
-        if best is None or lat < best_lat:
+        if best is None or lat <= best_lat:
             best, best_lat = r, lat
     if best is None:
         return None
@@ -85,6 +89,48 @@ def find_champion() -> dict | None:
         "lateness": best_lat,
         "title":    best.get("title", "") or "Untitled heuristic",
     }
+
+
+def prior_attempts(exclude_key: str | None = None) -> list[dict]:
+    """Every past attempt across all runs, distilled for context: title, the
+    one-line rule, its score, and whether it produced a valid schedule. Used to
+    tell a new run what's already been tried so it can avoid retreading it.
+
+    Deduped by title (keeping the best-scoring instance), most-recent-first.
+    `exclude_key` ('run_id|iter') drops one row — e.g. the champion we show in
+    full — so it isn't also listed under 'already tried'."""
+    if not RUNS_CSV.exists():
+        return []
+    with RUNS_CSV.open(newline="") as f:
+        rows = list(csv.DictReader(f))
+    by_title: dict[str, dict] = {}
+    order: list[str] = []
+    for r in rows:
+        key = f'{r.get("run_id", "")}|{r.get("iter", "")}'
+        if exclude_key and key == exclude_key:
+            continue
+        title = (r.get("title") or "").strip()
+        if not title:
+            continue
+        ok = r.get("status") == "success"
+        try:
+            lat = float(r.get("total_lateness", ""))
+        except (ValueError, TypeError):
+            lat = None
+        cur = {"title": title, "summary": (r.get("summary") or "").strip(),
+               "lateness": lat, "ok": ok}
+        prev = by_title.get(title)
+        # keep the best (lowest-lateness) instance of each distinct title;
+        # a successful attempt always beats a failed one
+        better = (prev is None
+                  or (cur["ok"] and not prev["ok"])
+                  or (cur["ok"] == prev["ok"] and lat is not None
+                      and (prev["lateness"] is None or lat < prev["lateness"])))
+        if better:
+            by_title[title] = cur
+        if title not in order:
+            order.append(title)
+    return [by_title[t] for t in reversed(order)]
 
 
 def save_iteration(

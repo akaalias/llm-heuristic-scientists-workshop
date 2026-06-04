@@ -80,18 +80,48 @@ def initial_prompt(scenario: Scenario) -> str:
     )
 
 
-def carryover_prompt(scenario: Scenario, champion: dict) -> str:
-    """A fresh run's FIRST prompt, seeded with the best heuristic found so far
-    (the champion of earlier runs) — connect to the past, then either build on
-    it or strike out in a new direction."""
+def _tried_block(attempts: list[dict], limit: int = 24) -> str:
+    """Format prior attempts into a compact 'already tried' list for the prompt:
+    each line is the rule, its score (or that it failed). Most-recent-first,
+    capped so the prompt stays focused."""
+    if not attempts:
+        return ""
+    lines = []
+    for a in attempts[:limit]:
+        if a["ok"] and a["lateness"] is not None:
+            score = f"lateness {a['lateness']:.1f}"
+        else:
+            score = "failed (no valid schedule)"
+        rule = a["summary"] or a["title"]
+        lines.append(f"  - {rule} — {score}")
+    return "\n".join(lines)
+
+
+def carryover_prompt(scenario: Scenario, champion: dict,
+                     tried: list[dict] | None = None) -> str:
+    """A fresh run's FIRST prompt. Hands over the best heuristic found so far
+    (the champion of earlier runs) AND the catalogue of everything already
+    tried, then asks — not either/or — to BOTH keep what works AND bring a
+    genuinely new idea we have not tested yet."""
+    tried_block = _tried_block(tried or [])
+    history = (
+        f"\n\nHere is what has already been tried across earlier runs — do NOT "
+        f"simply repeat any of these:\n{tried_block}\n"
+        if tried_block else ""
+    )
     return (
         problem_brief(scenario)
         + f'\n\nThe best heuristic discovered so far (across earlier runs) is '
           f'"{champion["title"]}", with average total_lateness = {champion["lateness"]:.1f}:\n\n'
-        + "```python\n" + champion["code"] + "\n```\n\n"
-        + "Start from here: propose a `priority(step, state)` function that builds "
-          "on this idea and tries to beat it — or, if you spot a better angle, take "
-          "a different direction. Keep it interpretable."
+        + "```python\n" + champion["code"] + "\n```"
+        + history
+        + "\n\nPropose ONE `priority(step, state)` function that does BOTH: keep "
+          "the parts of the champion above that clearly work, AND introduce at "
+          "least one genuinely new idea that is NOT in the list of things already "
+          "tried — a different signal, lookahead, or combination we have not "
+          "tested. This is not a choice between building on the past and trying "
+          "something new: do both in the same function. Be bold but keep it "
+          "interpretable."
     )
 
 
@@ -137,6 +167,44 @@ def breakout_prompt(scenario: Scenario, best_so_far: Optional[float], plateau_n:
           "station congestion / bottleneck ↔ shortest- or longest-processing-time ↔ "
           "critical-path lookahead), or combine signals in a way you haven't tried yet. "
           "Be bold but keep it interpretable."
+    )
+
+
+def hard_breakout_prompt(
+    bottleneck: Scenario,
+    converged_value: float,
+    per_scenario: list[tuple[str, float]],
+) -> str:
+    """Issued on a META-plateau: the global best has survived several pivots —
+    many different signals all collapse to the SAME schedule. Inventing another
+    urgency-flavoured rule won't help. So we stop leaning on the champion, show
+    WHERE the lateness actually concentrates, and aim the model at that one
+    bottleneck order set instead of asking for yet another generic signal.
+
+    `bottleneck` is the worst-scoring scenario (shown in the brief); `per_scenario`
+    is the converged rule's lateness on each order set."""
+    breakdown = "\n".join(f"  - {name}: lateness {lat:.1f}" for name, lat in per_scenario)
+    worst = bottleneck.name
+    return (
+        problem_brief(bottleneck)
+        + f"\n\nWe have CONVERGED. Several genuinely different priority signals "
+          f"(deadline urgency, slack-per-work, critical path, station congestion) "
+          f"have all collapsed to the SAME schedule, scoring average total_lateness "
+          f"= {converged_value:.1f}. The greedy placer produces an identical placement "
+          f"regardless of which of these you pick — so proposing yet another "
+          f"urgency-flavoured rule will NOT move the score.\n\n"
+          f"Here is where the lateness actually sits, per order set:\n{breakdown}\n\n"
+          f"Some order sets are already solved (lateness 0); the rest are not, and "
+          f"the hardest is '{worst}' (shown in full above). Do NOT reproduce the "
+          f"best-so-far, and do NOT just re-rank by deadline. Diagnose what makes the "
+          f"unsolved order sets — '{worst}' especially — hard: too many orders "
+          f"contending for one station, a long dish chain that must start early, a "
+          f"tight cluster of due times. Then propose a `priority(step, state)` that "
+          f"changes the placement ORDER in exactly those congested moments: look "
+          f"ahead to which station will be the bottleneck and protect it, or break "
+          f"ties by something other than urgency. Keep it interpretable, and keep it "
+          f"general — it is still scored on the average across ALL the order sets, "
+          f"not just '{worst}'."
     )
 
 
