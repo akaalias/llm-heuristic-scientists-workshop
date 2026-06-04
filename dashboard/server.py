@@ -103,9 +103,9 @@ def render_rows(rows: list[dict]) -> str:
         for field, _, cls in COLUMNS:
             raw = r.get(field, "") or ""
             if field == "n":
-                mark = ('<span class="pivot-mark" title="new approach after a plateau">↻</span>'
-                        if is_pivot else "")
-                cell = (html.escape(raw) if raw else "—") + mark
+                num = html.escape(raw) if raw else "—"
+                cell = (f'<span class="pivot-n" title="new approach after a plateau">{num}</span>'
+                        if is_pivot else num)
             elif field == "status":
                 cell = _status_cell(raw)
             elif field == "total_lateness":
