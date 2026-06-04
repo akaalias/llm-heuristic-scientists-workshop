@@ -46,7 +46,6 @@ body{margin:0;background:var(--paper);color:var(--ink);
 /* lineage svg — natural px width so it can exceed the viewport and scroll */
 #lin{display:block;}
 #lin text{font:12px/1 var(--serif);fill:var(--muted);}
-#lin .base{stroke:var(--rule);stroke-width:1;}
 #lin .edge{fill:none;stroke:var(--rule);stroke-width:1;}
 #lin .nd{cursor:pointer;}
 #lin .nk{fill:var(--ink);}
@@ -119,7 +118,10 @@ body{margin:0;background:var(--paper);color:var(--ink);
   // fixed node spacing (so it scrolls sideways with many), semicircular arcs
   // above linking each to its parent(s).
   const n = nodes.length;
-  const padX = 28, topPad = 14, labelH = 38, CAP = 260, minSpacing = 26;
+  const padX = 28, topPad = 14, CAP = 260, minSpacing = 26;
+  const labelOf = (nd) => nd.symbol || ("#" + nd.n);
+  const maxLabelLen = Math.max(1, ...nodes.map(nd => labelOf(nd).length));
+  const labelH = Math.min(280, Math.round(maxLabelLen * 5.9) + 14);   // room for the vertical labels
   const avail = Math.max(320, (host.clientWidth || 1000) - 2 * padX - 8);
   const spacing = n > 1 ? Math.max(minSpacing, avail / (n - 1)) : 0;
   const Wpx = Math.round(2 * padX + (n - 1) * spacing);
@@ -131,25 +133,25 @@ body{margin:0;background:var(--paper);color:var(--ink);
     edges.push({ c: nd.key, p: pk, dx: Math.abs(xOf[nd.key] - xOf[pk]) })));
   const maxRy = edges.length ? Math.min(CAP, Math.max(...edges.map(e => e.dx / 2))) : 18;
   const baseY = topPad + maxRy;
-  const H = Math.ceil(baseY + 14 + labelH);
+  const H = Math.ceil(baseY + 12 + labelH);
 
   let g = "";
-  // arcs above the baseline (capped half-ellipse for very long-range links)
+  // arcs above the row (capped half-ellipse for very long-range links); no baseline
   edges.forEach(e => {
     const a = Math.min(xOf[e.p], xOf[e.c]), b = Math.max(xOf[e.p], xOf[e.c]);
     const rx = (b - a) / 2, ry = Math.min(CAP, rx);
     g += `<path class="edge" data-c="${esc(e.c)}" data-p="${esc(e.p)}" `
        + `d="M${a.toFixed(1)},${baseY} A${rx.toFixed(1)},${ry.toFixed(1)} 0 0 1 ${b.toFixed(1)},${baseY}"/>`;
   });
-  g += `<line class="base" x1="${padX}" y1="${baseY}" x2="${Wpx - padX}" y2="${baseY}"/>`;
   nodes.forEach((nd, i) => {
     const x = xFor(i).toFixed(1);
     const cls = nd.kind === "failed" ? "nf" : nd.kind === "kept" ? "nk" : "ndd";
     const r = nd.kind === "kept" ? 4 : 3;
     g += `<circle class="nd ${cls}" data-key="${esc(nd.key)}" cx="${x}" cy="${baseY}" r="${r}"/>`;
     g += `<circle class="hit" data-key="${esc(nd.key)}" cx="${x}" cy="${baseY}" r="9" fill="transparent"/>`;
-    g += `<text class="nlab" data-key="${esc(nd.key)}" x="${x}" y="${baseY + 11}" text-anchor="end" `
-       + `transform="rotate(-90 ${x} ${baseY + 11})">#${esc(nd.n)}</text>`;
+    // label reads top→bottom (rotate 90, anchored just below the node)
+    g += `<text class="nlab" data-key="${esc(nd.key)}" x="${x}" y="${baseY + 8}" text-anchor="start" `
+       + `transform="rotate(90 ${x} ${baseY + 8})">${esc(labelOf(nd))}</text>`;
   });
   host.innerHTML = `<svg id="lin" width="${Wpx}" height="${H}" viewBox="0 0 ${Wpx} ${H}">${g}</svg>`;
 
@@ -157,7 +159,7 @@ body{margin:0;background:var(--paper);color:var(--ink);
   const svg = document.getElementById("lin");
   const q = (k) => CSS.escape(k);
   function lit(key){
-    const set = new Set([key]); walk(key, parentsOf, set); walk(key, childrenOf, set);
+    const set = new Set([key]); walk(key, parentsOf, set);   // ancestors only, back to the root
     svg.classList.add("dim");
     svg.querySelectorAll(".lit").forEach(el => el.classList.remove("lit"));
     set.forEach(k => svg.querySelectorAll(`[data-key="${q(k)}"]`).forEach(el => el.classList.add("lit")));

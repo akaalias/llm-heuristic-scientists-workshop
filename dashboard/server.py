@@ -483,9 +483,10 @@ def lineage_data(rows: list[dict]) -> dict:
             best, kind = val, "kept"
         else:
             kind = "discarded"
+        title = r.get("title", "") or "Untitled"
         nodes.append({
             "key": _row_key(r), "n": r.get("n", ""),
-            "title": r.get("title", "") or "Untitled",
+            "title": title, "symbol": slug(title),
             "summary": r.get("summary", "") or "",
             "lateness": val, "kind": kind,
             "parents": [p for p in (r.get("parents", "") or "").split(";") if p],
@@ -499,8 +500,8 @@ def render_lineage_page(template: str, csv_path: Path, target: float) -> str:
     data["target"] = target
     n = len(data["nodes"])
     sub = (f"{n} experiment{'' if n == 1 else 's'}, left → right in discovery order; "
-           "each arc links an experiment to the parent it built on. Hover to trace a "
-           "bloodline; click to open it on the dashboard." if n else "No experiments yet.")
+           "each arc links an experiment to the parent it built on. Hover to trace its "
+           "ancestry back to the root; click to open it on the dashboard." if n else "No experiments yet.")
     return (template
             .replace("<!--LINEAGEDATA-->", json.dumps(data))
             .replace("<!--SUB-->", html.escape(sub)))
