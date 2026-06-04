@@ -173,11 +173,17 @@ land:
 .venv/bin/python -m dashboard.server        # http://localhost:8000
 ```
 
-It reads `heuristics/discovered/runs.csv` fresh on every request, so just
-refresh the browser as the discovery loop runs — no restart needed. One row
-per iteration (run, scenario, model, lateness, status, time); the running-best
-rows (lowest lateness so far) are marked with an ink left-rule. No charts yet,
-just the table. Options: `--port`, `--host`, `--csv path/to/runs.csv`.
+The page updates itself: the server watches `heuristics/discovered/runs.csv`
+and pushes new rows over Server-Sent Events, so each new experiment appears at
+the top of the table — with a brief highlight — the moment the discovery loop
+appends it. No reload needed. (The table is server-rendered first, so it still
+shows the current state with JavaScript disabled; the live stream is pure
+enhancement.)
+
+One row per iteration, newest first (run, scenario, model, lateness, status,
+time); the running-best rows (lowest lateness so far) are marked with an ink
+left-rule. No charts yet, just the table. Options: `--port`, `--host`,
+`--csv path/to/runs.csv`.
 
 ## 3. Evaluate any heuristics on every scenario
 

@@ -70,6 +70,17 @@ tbody tr:hover{background:#f7f3e3;}
 .st-bad{color:var(--accent);}
 
 .empty{padding:28px 0;color:var(--muted);font-style:italic;}
+
+/* a new row slid in by the live stream gets a brief warm highlight */
+@keyframes rowflash{0%,25%{background:#f0e2c4;}100%{background:transparent;}}
+.row-new td{animation:rowflash 2.2s ease-out;}
+
+/* live-connection indicator — calm, on the right next to the timestamp */
+#live{font-style:normal;font-size:13px;}
+#live.on{color:#3f6e6e;}
+#live.on::before{content:"● ";animation:pulse 2s ease-in-out infinite;}
+#live.off{color:var(--faint);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 </style>
 </head>
 <body>
@@ -82,6 +93,7 @@ tbody tr:hover{background:#f7f3e3;}
     <span class="k"><span class="dot bad"></span>Failed</span>
     <span class="k">Ink left-rule = running best (lowest lateness)</span>
     <span id="updated"><!--UPDATED--></span>
+    <span id="live" class="off"></span>
   </div>
 </header>
 <div class="dash-wrap">
@@ -89,5 +101,35 @@ tbody tr:hover{background:#f7f3e3;}
     <!--TABLE-->
   </div>
 </div>
+<script>
+// Live updates via Server-Sent Events. Progressive enhancement: if this fails
+// or JS is off, the server-rendered table above still shows current state.
+(function () {
+  const tbody = document.getElementById("rows");
+  const sub   = document.querySelector(".sub");
+  const upd   = document.getElementById("updated");
+  const live  = document.getElementById("live");
+  if (!tbody || !window.EventSource) return;
+
+  const keysOf = () =>
+    new Set([...tbody.querySelectorAll("tr[data-key]")].map(r => r.dataset.key));
+  let known = keysOf();
+
+  const es = new EventSource("events");
+  es.onopen  = () => { live.textContent = "live";          live.className = "on";  };
+  es.onerror = () => { live.textContent = "reconnecting…"; live.className = "off"; };
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    tbody.innerHTML = d.rows;
+    if (sub) sub.textContent = d.sub;
+    if (upd) upd.textContent = d.updated;
+    // flash only rows we hadn't seen before (the new experiments)
+    tbody.querySelectorAll("tr[data-key]").forEach(r => {
+      if (!known.has(r.dataset.key)) r.classList.add("row-new");
+    });
+    known = keysOf();
+  };
+})();
+</script>
 </body>
 </html>

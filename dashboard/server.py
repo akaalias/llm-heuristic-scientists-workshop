@@ -2,10 +2,14 @@
 """A tiny, dependency-free dashboard for discovery runs.
 
 Serves a single Tufte-styled page (`index.html`) showing the experiment
-table read live from `heuristics/discovered/runs.csv`. The CSV is re-read on
-every request, so leaving this running next to a discovery loop gives you a
-just-refresh-the-browser view of progress. No JavaScript, no charts — just
-the table.
+table read from `heuristics/discovered/runs.csv`, newest first.
+
+The page updates itself: the server watches the CSV and pushes new rows over
+Server-Sent Events (the `/events` stream), so a new experiment shows up at the
+top of the table — with a brief highlight — the moment the discovery loop
+appends it. No reload needed. The page is fully server-rendered first, so it
+still shows the current state with JavaScript disabled; the live stream is
+pure enhancement. No charts — just the table.
 
 Usage
 -----
@@ -17,6 +21,9 @@ Usage
 import argparse
 import csv
 import html
+import json
+import os
+import time
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -25,8 +32,10 @@ HERE        = Path(__file__).parent
 TEMPLATE    = HERE / "index.html"
 DEFAULT_CSV = HERE.parent / "heuristics" / "discovered" / "runs.csv"
 
+POLL_S      = 1.0   # how often the SSE loop checks the CSV for changes
+PING_EVERY  = 10    # send an SSE comment every Nth idle poll (detects drops)
+
 # (csv field, column header, css class for the cell). Order = display order.
-# Any extra columns present in the CSV but not listed here are appended as-is.
 COLUMNS = [
     ("iter",           "#",        "num"),
     ("run_id",         "Run",      "mono"),
@@ -56,16 +65,23 @@ def _to_float(s: str) -> float | None:
         return None
 
 
-def render_table(rows: list[dict]) -> str:
-    """Build the <table> (or an empty-state note) from the CSV rows."""
+def _row_key(r: dict) -> str:
+    """Stable id for a row, so the page can tell which rows are new."""
+    return f'{r.get("run_id", "")}|{r.get("iter", "")}'
+
+
+def render_rows(rows: list[dict]) -> str:
+    """Render the <tr>s for the table body, newest first.
+
+    `rows` is in CSV (chronological) order. Running-best (lowest lateness so
+    far) is computed in that order, then the rows are reversed for display so
+    the most recent experiment sits at the top."""
     if not rows:
-        return ('<p class="empty">No runs yet — start one with '
-                "<code>python -m discovery.discover</code>.</p>")
+        return (f'<tr class="placeholder"><td colspan="{len(COLUMNS)}" class="empty">'
+                "No runs yet — start one with "
+                "<code>python -m discovery.discover</code>.</td></tr>")
 
-    # render exactly the base-schema columns; ignore any others a CSV may carry
-    headers = COLUMNS
-
-    # mark each row that set a new running-best (lowest) lateness
+    # mark each row that set a new running-best (lowest) lateness — chronologically
     best: float | None = None
     is_best = []
     for r in rows:
@@ -75,12 +91,10 @@ def render_table(rows: list[dict]) -> str:
             best = val
         is_best.append(new_best)
 
-    head = "".join(f"<th>{html.escape(h)}</th>" for _, h, _ in headers)
-
-    body_rows = []
-    for r, best_row in zip(rows, is_best):
+    out = []
+    for r, best_row in reversed(list(zip(rows, is_best))):  # newest first
         cells = []
-        for field, _, cls in headers:
+        for field, _, cls in COLUMNS:
             raw = r.get(field, "") or ""
             if field == "status":
                 cell = _status_cell(raw)
@@ -92,11 +106,28 @@ def render_table(rows: list[dict]) -> str:
                 cell = html.escape(raw) if raw else '<span class="faint">—</span>'
             klass = f' class="{cls}"' if cls else ""
             cells.append(f"<td{klass}>{cell}</td>")
-        tr_cls = ' class="best-row"' if best_row else ""
-        body_rows.append(f"<tr{tr_cls}>{''.join(cells)}</tr>")
+        tr_cls = " best-row" if best_row else ""
+        key = html.escape(_row_key(r))
+        out.append(f'<tr class="row{tr_cls}" data-key="{key}">{"".join(cells)}</tr>')
+    return "".join(out)
 
+
+def render_table(rows: list[dict]) -> str:
+    """The full <table>: a fixed head plus a `#rows` body the stream replaces."""
+    head = "".join(f"<th>{html.escape(h)}</th>" for _, h, _ in COLUMNS)
     return (f"<table><thead><tr>{head}</tr></thead>"
-            f"<tbody>{''.join(body_rows)}</tbody></table>")
+            f'<tbody id="rows">{render_rows(rows)}</tbody></table>')
+
+
+def meta(rows: list[dict]) -> tuple[str, str]:
+    """(sub-heading text, 'updated …' text) for the current rows."""
+    if not rows:
+        return "Waiting for the first discovery run.", ""
+    runs = {r.get("run_id", "") for r in rows}
+    latest = max((r.get("timestamp", "") for r in rows), default="")
+    sub = f"{len(rows)} iterations across {len(runs)} run(s)."
+    updated = f"updated {latest}" if latest else ""
+    return sub, updated
 
 
 def load_rows(csv_path: Path) -> list[dict]:
@@ -108,15 +139,11 @@ def load_rows(csv_path: Path) -> list[dict]:
 
 def render_page(template: str, csv_path: Path) -> str:
     rows = load_rows(csv_path)
-    runs = {r.get("run_id", "") for r in rows}
-    latest = max((r.get("timestamp", "") for r in rows), default="")
-    sub = (f"{len(rows)} iterations across {len(runs)} run(s)."
-           if rows else "Waiting for the first discovery run.")
-    updated = f"updated {html.escape(latest)}" if latest else ""
+    sub, updated = meta(rows)
     return (template
             .replace("<!--TABLE-->", render_table(rows))
             .replace("<!--SUB-->", html.escape(sub))
-            .replace("<!--UPDATED-->", updated))
+            .replace("<!--UPDATED-->", html.escape(updated)))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -125,9 +152,14 @@ class Handler(BaseHTTPRequestHandler):
         super().__init__(*args, **kwargs)
 
     def do_GET(self):
-        if self.path not in ("/", "/index.html"):
+        if self.path.startswith("/events"):
+            self.stream_events()
+        elif self.path in ("/", "/index.html"):
+            self.serve_page()
+        else:
             self.send_error(404)
-            return
+
+    def serve_page(self):
         try:
             page = render_page(TEMPLATE.read_text(), self.csv_path)
         except Exception as exc:  # never let one bad render kill the server
@@ -139,6 +171,48 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def stream_events(self):
+        """Server-Sent Events: push the rendered rows whenever the CSV changes.
+
+        Sends an initial snapshot on connect, then watches the file's mtime and
+        re-sends on every change. A periodic comment keeps the connection warm
+        and surfaces client disconnects (the write raises, we return)."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "keep-alive")
+        self.end_headers()
+        self.wfile.write(b"retry: 2000\n\n")  # reconnect after 2s if dropped
+
+        last_mtime = object()  # sentinel: force an initial send
+        idle = 0
+        try:
+            while True:
+                try:
+                    mtime = os.path.getmtime(self.csv_path)
+                except OSError:
+                    mtime = None  # no CSV yet — still send the empty snapshot once
+                if mtime != last_mtime:
+                    last_mtime = mtime
+                    rows = load_rows(self.csv_path)
+                    sub, updated = meta(rows)
+                    payload = json.dumps({
+                        "rows": render_rows(rows),
+                        "sub": sub,
+                        "updated": updated,
+                    })
+                    self.wfile.write(f"data: {payload}\n\n".encode("utf-8"))
+                    self.wfile.flush()
+                    idle = 0
+                else:
+                    idle += 1
+                    if idle % PING_EVERY == 0:
+                        self.wfile.write(b": ping\n\n")
+                        self.wfile.flush()
+                time.sleep(POLL_S)
+        except (BrokenPipeError, ConnectionResetError):
+            return  # client navigated away / closed the tab
 
     def log_message(self, *_):
         pass  # quiet: don't spam the terminal running the discovery loop
@@ -154,7 +228,7 @@ def main() -> None:
 
     handler = partial(Handler, csv_path=args.csv)
     server = ThreadingHTTPServer((args.host, args.port), handler)
-    print(f"dashboard → http://{args.host}:{args.port}  (reading {args.csv})")
+    print(f"dashboard → http://{args.host}:{args.port}  (watching {args.csv})")
     print("Ctrl-C to stop.")
     try:
         server.serve_forever()
