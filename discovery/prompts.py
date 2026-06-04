@@ -37,8 +37,13 @@ Rules:
 
 The shape of `step` and `state` is defined by problem_definition/model.py below; the
 placement loop is in placer.py. Treat both as the authoritative spec.
-A helper `earliest_start(step, state) -> float` is available in the global
-namespace (and defined in problem_definition/model.py).
+These read-only helpers are available in your function's namespace — call them,
+don't redefine them:
+  - `earliest_start(step, state) -> float`
+  - `eligible_steps(state) -> list[Step]`  (the steps runnable right now)
+  - `all_steps(state) -> list[Step]`
+Do NOT call the mutating placer functions (`place`, `construct`) — they are
+shown below for context only and are not available to your heuristic.
 
 ===== problem_definition/model.py =====
 {MODEL_SRC}

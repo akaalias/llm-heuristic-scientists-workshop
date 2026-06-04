@@ -19,7 +19,7 @@ from problem_definition.model import (
     Dish, Order, State, Station, Step,
     earliest_start,
 )
-from discovery.placer import PriorityFn
+from discovery.placer import PriorityFn, all_steps, eligible_steps
 
 
 class HeuristicTimeoutError(TimeoutError):
@@ -44,12 +44,15 @@ def time_limit(seconds: int):
 def compile_priority(code: str) -> PriorityFn:
     """Exec the LLM-generated code and return its `priority` callable.
 
-    The dataclasses + `earliest_start` are pre-injected so the model can
-    refer to them (including in type annotations) without extra imports.
+    The dataclasses + the read-only helpers (`earliest_start`, `eligible_steps`,
+    `all_steps`) are pre-injected so the model can refer to them (including in
+    type annotations) without extra imports. The mutating placer functions
+    (`place`, `construct`) are deliberately NOT injected.
     """
     ns: dict = {
         "Step": Step, "State": State, "Order": Order, "Dish": Dish, "Station": Station,
         "earliest_start": earliest_start,
+        "eligible_steps": eligible_steps, "all_steps": all_steps,
     }
     exec(compile(code, "<llm-heuristic>", "exec"), ns)
     fn = ns.get("priority")
