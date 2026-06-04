@@ -327,8 +327,8 @@ def gantt_svg(sched: dict) -> str:
             tip = (f'{name} — order o{oid}, dish {dish+1} · {e["station"]} · '
                    f't {_fmtnum(e["start"])}–{_fmtnum(e["end"])}')
             g.append(f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bw:.1f}" height="{bh}" rx="1.5" '
-                     f'fill="{pale[oid]}" stroke="{color[oid]}" stroke-width="1">'
-                     f'<title>{html.escape(tip)}</title></rect>')
+                     f'fill="{pale[oid]}" stroke="{color[oid]}" stroke-width="1" '
+                     f'data-tip="{html.escape(tip, quote=True)}"/>')
             if bw >= 12:
                 g.append(f'<text class="gd" x="{bx+bw/2:.1f}" y="{by+bh/2+3:.1f}" '
                          f'text-anchor="middle">{dish+1}</text>')
