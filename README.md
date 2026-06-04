@@ -123,9 +123,16 @@ overfitting one layout. The schedule diagram always uses the first scenario
 (`TRAINING`) for consistency. `HIDDEN_TEST`/`STRESS` stay held out for
 `leaderboard.py`.
 
+If the best score doesn't move for `PLATEAU_PATIENCE` iterations (default 6),
+the loop stops asking for tweaks and prompts the model to **step back and try a
+fundamentally different strategy** — escaping dead ends and injecting creativity
+when it's needed. The plateaued experiment is kept as a parent (history is
+retained), then a fresh patience window starts.
+
 Knobs are module-level constants at the top of `discovery/discover.py`
-(`MODEL`, `ITERATIONS`, `SCENARIOS`, `EVAL_TIMEOUT_S`, `MAX_TOKENS`). Model,
-endpoint, and iteration count can also be overridden per-run from the CLI.
+(`MODEL`, `ITERATIONS`, `SCENARIOS`, `PLATEAU_PATIENCE`, `EVAL_TIMEOUT_S`,
+`MAX_TOKENS`). Model, endpoint, and iteration count can also be overridden
+per-run from the CLI.
 
 Each iteration's code is saved to `heuristics/discovered/run_<ts>_iter<N>.py`
 (success or failure) and one row is appended to

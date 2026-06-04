@@ -100,6 +100,26 @@ def refine_prompt(
     )
 
 
+def breakout_prompt(scenario: Scenario, best_so_far: Optional[float], plateau_n: int) -> str:
+    """Issued after a plateau: stop tweaking and try a fundamentally different
+    strategy. The conversation history still holds everything that's been
+    tried, so the model knows what NOT to repeat."""
+    beat = (f"None of them beat total_lateness = {best_so_far:.1f}."
+            if best_so_far is not None else
+            "None of them produced a valid schedule.")
+    return (
+        problem_brief(scenario)
+        + f"\n\nThe last {plateau_n} attempts have plateaued. {beat} "
+          "Incremental tweaks have stopped helping.\n\n"
+          "Step BACK and propose a FUNDAMENTALLY DIFFERENT `priority(step, state)` "
+          "strategy — not a variation of the recent attempts. Change the core idea: "
+          "switch the dominant signal (deadline urgency ↔ slack per remaining work ↔ "
+          "station congestion / bottleneck ↔ shortest- or longest-processing-time ↔ "
+          "critical-path lookahead), or combine signals in a way you haven't tried yet. "
+          "Be bold but keep it interpretable."
+    )
+
+
 _CODE_RE = re.compile(r"```(?:python)?\s*(.*?)```", re.DOTALL)
 
 def extract_code(reply: str) -> str:

@@ -30,7 +30,8 @@ from heuristics.discovered        import RUNS_CSV, save_iteration
 from util.infra                   import ScheduleEntry
 from discovery.placer             import PriorityFn, construct, init_state
 from discovery.prompts            import (
-    SYSTEM, describe_prompt, extract_code, initial_prompt, parse_description, refine_prompt,
+    SYSTEM, breakout_prompt, describe_prompt, extract_code, initial_prompt,
+    parse_description, refine_prompt,
 )
 from discovery.runtime            import compile_priority, time_limit
 
@@ -39,6 +40,7 @@ load_dotenv()
 
 MODEL          = "openai/gpt-oss-120b"  # default: Hugging Face Inference
 ITERATIONS     = 10
+PLATEAU_PATIENCE = 6    # iterations with no improvement → ask for a new approach
 SCENARIOS      = TRAINING_BATTERY   # heuristics are scored on the mean across these
 GANTT_SCENARIO = SCENARIOS[0]       # always the first — keeps the diagram consistent
 EVAL_TIMEOUT_S = 5     # bound buggy priority() so it can't hang the workshop
@@ -121,6 +123,7 @@ def discover(model: str = MODEL, base_url: str | None = None,
     best_code:  str   | None = None
     best_iter:  int   | None = None
     prev_value, prev_error = None, None
+    since_improve = 0   # iterations since the best last moved (plateau detector)
 
     for it in range(1, iterations + 1):
         print(f"\n=== iteration {it} ===")
@@ -130,7 +133,14 @@ def discover(model: str = MODEL, base_url: str | None = None,
         parent_best_iter = best_iter
 
         if it > 1:
-            prompt = refine_prompt(GANTT_SCENARIO, prev_value, prev_error, best_value)
+            if since_improve >= PLATEAU_PATIENCE:
+                # stuck in a dead end — keep the plateaued attempt as a parent
+                # (history is retained) but ask for a fundamentally new approach
+                print(f"--- plateau: {since_improve} iterations without improvement → new approach ---")
+                prompt = breakout_prompt(GANTT_SCENARIO, best_value, since_improve)
+                since_improve = 0   # give the new direction a fresh patience window
+            else:
+                prompt = refine_prompt(GANTT_SCENARIO, prev_value, prev_error, best_value)
 
         history.append({"role": "user", "content": prompt})
         reply = client.chat_completion(
@@ -146,6 +156,7 @@ def discover(model: str = MODEL, base_url: str | None = None,
         value:       float | None = None
         error_class: str   | None = None
         schedule = None
+        improved = False
         try:
             with time_limit(EVAL_TIMEOUT_S):
                 fn              = compile_priority(code)
@@ -159,7 +170,10 @@ def discover(model: str = MODEL, base_url: str | None = None,
             print(f"--- total_lateness = {value:.1f}")
             if best_value is None or value < best_value:
                 best_value, best_code, best_iter = value, code, it
+                improved = True
                 print(f"--- new best (iter {it}) ---")
+
+        since_improve = 0 if improved else since_improve + 1
 
         # Capture the schedule so the dashboard can draw a Gantt without ever
         # executing the heuristic itself (successful iterations only).
