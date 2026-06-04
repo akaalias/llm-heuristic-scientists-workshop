@@ -340,7 +340,9 @@ def gantt_svg(sched: dict) -> str:
 
 
 def load_schedule(csv_dir: Path, fname: str) -> dict | None:
-    """Read the sidecar schedule JSON saved next to an iteration's .py."""
+    """Read the sidecar schedule JSON saved next to an iteration's .py. It holds
+    one schedule per battery sample under `samples` (older single-schedule files
+    are still accepted)."""
     if not fname:
         return None
     sp = csv_dir / (Path(fname).stem + ".schedule.json")
@@ -350,6 +352,22 @@ def load_schedule(csv_dir: Path, fname: str) -> dict | None:
         except (ValueError, OSError):
             return None
     return None
+
+
+def schedule_samples(sched: dict | None) -> list[dict]:
+    """The per-sample schedules in a sidecar (the new `samples` list, or the
+    old single schedule wrapped in a list)."""
+    if not sched:
+        return []
+    if "samples" in sched:
+        return sched["samples"]
+    return [sched] if sched.get("entries") else []
+
+
+def first_sample(sched: dict | None) -> dict | None:
+    """The first sample's schedule — what the detail-view Gantt draws."""
+    s = schedule_samples(sched)
+    return s[0] if s else None
 
 
 def gantt_thumb(sched: dict) -> str:
@@ -388,29 +406,51 @@ def gantt_thumb(sched: dict) -> str:
             f'role="img" aria-label="schedule thumbnail">{"".join(g)}</svg>')
 
 
-def render_grid(rows: list[dict], csv_dir: Path) -> str:
-    """Small-multiples grid: one thumbnail per experiment that has a schedule,
-    best (lowest lateness) first, each linking back to its row on the dashboard."""
-    have = [(r, load_schedule(csv_dir, r.get("file", ""))) for r in rows]
-    have = [(r, s) for r, s in have if s]
-    have.sort(key=lambda rs: _to_float(rs[0].get("total_lateness", "")) if
-              _to_float(rs[0].get("total_lateness", "")) is not None else float("inf"))
+def _lat_key(v) -> float:
+    f = _to_float(str(v))
+    return f if f is not None else float("inf")
 
-    cells = []
-    for r, sched in have:
-        key = _row_key(r)
-        title = r.get("title", "") or "Untitled"
-        lat = r.get("total_lateness", "") or "—"
-        cells.append(
-            f'<a class="cell" href="/#exp={quote(key)}" title="{html.escape(title)}">'
-            f'<div class="cell-thumb">{gantt_thumb(sched)}</div>'
-            f'<div class="cell-cap"><span class="cell-n">#{html.escape(r.get("n",""))}</span>'
-            f'<span class="cell-title">{html.escape(title)}</span>'
-            f'<span class="cell-lat">{html.escape(lat)}</span></div></a>')
-    if not cells:
+
+def render_grid(rows: list[dict], csv_dir: Path) -> str:
+    """Small-multiples grid grouped BY SAMPLE: a section per battery sample,
+    and under each, every experiment's schedule on that sample (best on that
+    sample first). Each thumbnail links back to its row on the dashboard."""
+    have = [(r, load_schedule(csv_dir, r.get("file", ""))) for r in rows]
+    have = [(r, s) for r, s in have if schedule_samples(s)]
+    if not have:
         return ('<p class="empty">No schedules yet — run '
                 "<code>python -m discovery.discover</code> first.</p>")
-    return f'<div class="grid">{"".join(cells)}</div>'
+
+    # group: sample name → [(row, that sample's schedule)], in first-seen order
+    groups: dict[str, list] = {}
+    order: list[str] = []
+    for r, sched in have:
+        for s in schedule_samples(sched):
+            name = s.get("name", "sample")
+            if name not in groups:
+                groups[name] = []
+                order.append(name)
+            groups[name].append((r, s))
+
+    sections = []
+    for name in order:
+        items = sorted(groups[name], key=lambda rs: _lat_key(rs[1].get("lateness")))
+        cells = []
+        for r, s in items:
+            key = _row_key(r)
+            title = r.get("title", "") or "Untitled"
+            lat = s.get("lateness", "")
+            cells.append(
+                f'<a class="cell" href="/#exp={quote(key)}" title="{html.escape(title)}">'
+                f'<div class="cell-thumb">{gantt_thumb(s)}</div>'
+                f'<div class="cell-cap"><span class="cell-n">#{html.escape(r.get("n",""))}</span>'
+                f'<span class="cell-title">{html.escape(title)}</span>'
+                f'<span class="cell-lat">{html.escape(str(lat))}</span></div></a>')
+        sections.append(
+            f'<section class="sample"><h2 class="sample-h">{html.escape(name)}'
+            f'<span class="cnt">{len(items)} experiments</span></h2>'
+            f'<div class="grid">{"".join(cells)}</div></section>')
+    return "".join(sections)
 
 
 def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
@@ -428,7 +468,7 @@ def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
         p = csv_dir / fname
         if p.exists():
             code = _code_from_py(p.read_text())
-    schedule = load_schedule(csv_dir, fname)
+    sched0 = first_sample(load_schedule(csv_dir, fname))   # the detail Gantt = first sample
 
     parents = []
     for pk in (r.get("parents", "") or "").split(";"):
@@ -446,8 +486,8 @@ def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
         "symbol": slug(title),
         "title": title,
         "summary": r.get("summary", "") or "",
-        "gantt_svg": gantt_svg(schedule) if schedule else "",
-        "thumb_svg": gantt_thumb(schedule) if schedule else "",
+        "gantt_svg": gantt_svg(sched0) if sched0 else "",
+        "thumb_svg": gantt_thumb(sched0) if sched0 else "",
         "code_html": highlight_py(code) if code else "",
         "parents": parents,
         "lateness": r.get("total_lateness", "") or "",
@@ -510,9 +550,10 @@ def render_lineage_page(template: str, csv_path: Path, target: float) -> str:
 
 def render_grid_page(template: str, csv_path: Path) -> str:
     rows = load_rows(csv_path)
-    n = sum(1 for r in rows if load_schedule(csv_path.parent, r.get("file", "")))
-    sub = (f"{n} schedule{'' if n == 1 else 's'} — one thumbnail per experiment, "
-           "best (lowest lateness) first. Click any to open it on the dashboard."
+    n = sum(1 for r in rows if schedule_samples(load_schedule(csv_path.parent, r.get("file", ""))))
+    sub = (f"{n} experiment{'' if n == 1 else 's'} across the training battery — one "
+           "section per sample, each showing every experiment's schedule on it (best "
+           "on that sample first). Click any to open it on the dashboard."
            if n else "No schedules yet.")
     return (template
             .replace("<!--GRID-->", render_grid(rows, csv_path.parent))

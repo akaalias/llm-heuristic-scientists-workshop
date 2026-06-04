@@ -95,18 +95,29 @@ def build_schedule(priority_fn: PriorityFn, scenario) -> list[ScheduleEntry]:
     return schedule
 
 
-def evaluate_battery(priority_fn: PriorityFn) -> tuple[float, list[ScheduleEntry]]:
-    """Battle-test a heuristic across the whole training battery: returns the
-    MEAN total_lateness over all scenarios (so a rule can't just overfit one
-    layout), plus the schedule on the FIRST scenario — which the dashboard
-    always draws as the Gantt, keeping that diagram consistent."""
-    total, first_schedule = 0.0, None
-    for i, sc in enumerate(SCENARIOS):
+def evaluate_battery(priority_fn: PriorityFn) -> tuple[float, list[dict]]:
+    """Battle-test a heuristic across the whole training battery. Returns the
+    MEAN total_lateness (so a rule can't just overfit one layout) and a
+    serialised schedule per sample — each with its own orders, placed steps,
+    dish names, and per-sample lateness — for the dashboard to draw. The first
+    sample (TRAINING) is the one the detail-view Gantt uses."""
+    total = 0.0
+    samples: list[dict] = []
+    for sc in SCENARIOS:
         schedule = build_schedule(priority_fn, sc)
-        total += evaluate(schedule, sc.orders)
-        if i == 0:
-            first_schedule = schedule
-    return total / len(SCENARIOS), first_schedule
+        lat = evaluate(schedule, sc.orders)
+        total += lat
+        st = init_state(sc.orders, sc.kitchen)
+        dish_name = {s.id: s.dish.name for o in st.orders for d in o.dishes for s in d.steps}
+        samples.append({
+            "name":     sc.name,
+            "lateness": round(lat, 1),
+            "horizon":  max((e.end for e in schedule), default=0),
+            "orders":   [{"id": o.id, "arrival": o.arrival, "due": o.due} for o in sc.orders],
+            "entries":  [{"step": e.step, "station": e.station, "start": e.start, "end": e.end,
+                          "dish_name": dish_name.get(e.step, "")} for e in schedule],
+        })
+    return total / len(SCENARIOS), samples
 
 
 def discover(model: str = MODEL, base_url: str | None = None,
@@ -157,10 +168,11 @@ def discover(model: str = MODEL, base_url: str | None = None,
         error_class: str   | None = None
         schedule = None
         improved = False
+        samples = None
         try:
             with time_limit(EVAL_TIMEOUT_S):
-                fn              = compile_priority(code)
-                value, schedule = evaluate_battery(fn)   # mean over the battery; schedule = scenario 0
+                fn             = compile_priority(code)
+                value, samples = evaluate_battery(fn)   # mean over the battery + per-sample schedules
         except Exception as exc:
             prev_error  = traceback.format_exc(limit=3)
             error_class = type(exc).__name__
@@ -175,23 +187,9 @@ def discover(model: str = MODEL, base_url: str | None = None,
 
         since_improve = 0 if improved else since_improve + 1
 
-        # Capture the schedule so the dashboard can draw a Gantt without ever
-        # executing the heuristic itself (successful iterations only).
-        schedule_data = None
-        if schedule is not None and value is not None:
-            # map each step id to its dish name from the materialized graph
-            # (orders are OrderSpecs whose `dishes` are just name strings)
-            _state = init_state(GANTT_SCENARIO.orders, GANTT_SCENARIO.kitchen)
-            dish_name = {s.id: s.dish.name
-                         for o in _state.orders for d in o.dishes for s in d.steps}
-            schedule_data = {
-                "horizon": max((e.end for e in schedule), default=0),
-                "orders":  [{"id": o.id, "arrival": o.arrival, "due": o.due}
-                            for o in GANTT_SCENARIO.orders],
-                "entries": [{"step": e.step, "station": e.station,
-                             "start": e.start, "end": e.end,
-                             "dish_name": dish_name.get(e.step, "")} for e in schedule],
-            }
+        # Persist the per-sample schedules so the dashboard can draw Gantts
+        # without ever executing the heuristic (successful iterations only).
+        schedule_data = {"samples": samples} if (samples and value is not None) else None
 
         parents = []
         if it > 1:
