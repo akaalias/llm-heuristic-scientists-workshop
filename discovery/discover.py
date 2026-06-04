@@ -92,11 +92,12 @@ def build_schedule(priority_fn: PriorityFn) -> list[ScheduleEntry]:
     return schedule
 
 
-def discover(model: str = MODEL, base_url: str | None = None) -> None:
+def discover(model: str = MODEL, base_url: str | None = None,
+             iterations: int = ITERATIONS) -> None:
     client = build_client(model, base_url)
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     where  = base_url if base_url else "Hugging Face"
-    print(f"discovering with model={model} via {where}")
+    print(f"discovering with model={model} via {where} ({iterations} iterations)")
 
     history = [{"role": "system", "content": SYSTEM}]
     prompt  = initial_prompt(SCENARIO)
@@ -106,7 +107,7 @@ def discover(model: str = MODEL, base_url: str | None = None) -> None:
     best_iter:  int   | None = None
     prev_value, prev_error = None, None
 
-    for it in range(1, ITERATIONS + 1):
+    for it in range(1, iterations + 1):
         print(f"\n=== iteration {it} ===")
 
         # provenance: this proposal is shaped by the previous iteration and the
@@ -214,8 +215,12 @@ def main() -> None:
         help=f"Model id to request (default: {MODEL}). For a local server, use "
              "the model id shown in LM Studio, e.g. openai/gpt-oss-20b.",
     )
+    parser.add_argument(
+        "--iterations", type=int, default=ITERATIONS,
+        help=f"number of refinement iterations to run (default: {ITERATIONS})",
+    )
     args = parser.parse_args()
-    discover(model=args.model, base_url=normalize_api(args.api))
+    discover(model=args.model, base_url=normalize_api(args.api), iterations=args.iterations)
 
 
 if __name__ == "__main__":
