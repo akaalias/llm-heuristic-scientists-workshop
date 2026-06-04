@@ -51,6 +51,24 @@ shown below for context only and are not available to your heuristic.
 {PLACER_SRC}"""
 
 
+def system_prompt(library: str | None = None) -> str:
+    """The base system prompt, optionally augmented with a user-supplied research
+    & inspiration library (pointers to scheduling literature, techniques, and
+    ideas). Injected once into the conversation so it informs every proposal —
+    initial, refinement, and pivot — to encourage more creative heuristics."""
+    if not library or not library.strip():
+        return SYSTEM
+    return (
+        SYSTEM
+        + "\n\n===== research & inspiration library =====\n"
+        + "These notes — prior research, techniques, and ideas for this class of "
+          "scheduling problem — are provided to broaden your thinking. Draw on them "
+          "for inspiration where useful; you are NOT required to use any particular "
+          "one, and you must still obey every rule above.\n\n"
+        + library.strip()
+    )
+
+
 def problem_brief(scenario: Scenario) -> str:
     return textwrap.dedent(f"""
         Problem semantics:

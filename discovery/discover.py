@@ -9,6 +9,7 @@ Usage
     export HF_TOKEN=hf_xxx                       # or set it in .env
     python -m discovery.discover                 # default iterations on TRAINING (HF)
     python -m discovery.discover --iterations 30 --patience 6
+    python -m discovery.discover --library discovery/library.md   # seed with research notes
 
     # against a local LM Studio / OpenAI-compatible server:
     python -m discovery.discover \
@@ -20,6 +21,7 @@ import argparse
 import os
 import traceback
 from datetime import datetime
+from pathlib import Path
 
 from dotenv import load_dotenv
 from huggingface_hub import InferenceClient
@@ -31,8 +33,9 @@ from heuristics.discovered        import RUNS_CSV, find_champion, prior_attempts
 from util.infra                   import ScheduleEntry
 from discovery.placer             import PriorityFn, construct, init_state
 from discovery.prompts            import (
-    SYSTEM, breakout_prompt, describe_prompt, extract_code, hard_breakout_prompt,
+    breakout_prompt, describe_prompt, extract_code, hard_breakout_prompt,
     initial_prompt, parse_description, refine_prompt, reproduce_prompt,
+    system_prompt,
 )
 from discovery.runtime            import compile_priority, time_limit
 
@@ -125,12 +128,22 @@ def evaluate_battery(priority_fn: PriorityFn) -> tuple[float, list[dict]]:
 
 def discover(model: str = MODEL, base_url: str | None = None,
              iterations: int = ITERATIONS, patience: int = PLATEAU_PATIENCE,
-             meta_pivots: int = META_PLATEAU_PIVOTS) -> None:
+             meta_pivots: int = META_PLATEAU_PIVOTS, library: str | None = None) -> None:
     client = build_client(model, base_url)
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     where  = base_url if base_url else "Hugging Face"
     print(f"discovering with model={model} via {where} ({iterations} iterations, "
           f"patience={patience}, meta-pivots={meta_pivots})")
+
+    # optional inspiration library: research notes / ideas to broaden the search,
+    # injected once into the system prompt so it informs every proposal
+    library_text = ""
+    if library:
+        try:
+            library_text = Path(library).read_text()
+            print(f"loaded inspiration library from {library} ({len(library_text)} chars)")
+        except OSError as exc:
+            print(f"could not read library {library} ({type(exc).__name__}) — continuing without it")
 
     best_value:   float | None = None
     best_code:    str   | None = None
@@ -157,7 +170,7 @@ def discover(model: str = MODEL, base_url: str | None = None,
                   f"({type(exc).__name__}) — starting cold")
             champion = None
 
-    history = [{"role": "system", "content": SYSTEM}]
+    history = [{"role": "system", "content": system_prompt(library_text)}]
     prompt  = (reproduce_prompt(GANTT_SCENARIO, champion)
                if (champion and champion["code"]) else initial_prompt(GANTT_SCENARIO))
 
@@ -317,10 +330,16 @@ def main() -> None:
         help=f"consecutive pivots with no global improvement before the hard "
              f"breakout that targets the bottleneck scenario (default: {META_PLATEAU_PIVOTS})",
     )
+    parser.add_argument(
+        "--library", metavar="PATH", default=None,
+        help="path to a markdown file of research notes / inspirations sent with "
+             "every prompt to encourage more creative heuristics (e.g. "
+             "discovery/library.md). When unset, no library is sent.",
+    )
     args = parser.parse_args()
     discover(model=args.model, base_url=normalize_api(args.api),
              iterations=args.iterations, patience=args.patience,
-             meta_pivots=args.meta_pivots)
+             meta_pivots=args.meta_pivots, library=args.library)
 
 
 if __name__ == "__main__":
