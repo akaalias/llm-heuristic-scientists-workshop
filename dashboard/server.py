@@ -447,6 +447,7 @@ def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
         "title": title,
         "summary": r.get("summary", "") or "",
         "gantt_svg": gantt_svg(schedule) if schedule else "",
+        "thumb_svg": gantt_thumb(schedule) if schedule else "",
         "code_html": highlight_py(code) if code else "",
         "parents": parents,
         "lateness": r.get("total_lateness", "") or "",

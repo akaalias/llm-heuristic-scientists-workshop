@@ -65,15 +65,27 @@ body{margin:0;background:var(--paper);color:var(--ink);
 
 .empty{padding:28px 0;color:var(--muted);font-style:italic;}
 
-/* hover tooltip */
-#tip{position:fixed;z-index:30;pointer-events:none;opacity:0;transition:opacity .08s;
+/* hover popover — anchored below the node (fixed), with the schedule thumbnail
+   beside the rule + provenance */
+#tip{position:fixed;z-index:30;pointer-events:none;opacity:0;transition:opacity .1s;
      background:var(--paper);color:var(--ink);border:1px solid var(--rule);
-     box-shadow:0 4px 18px rgba(60,50,30,.15);border-radius:4px;
-     font:13px/1.45 var(--serif);padding:8px 11px;max-width:340px;}
-#tip .tt-title{font-weight:700;margin-bottom:2px;}
-#tip .tt-meta{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;}
-#tip .tt-rule{color:#33312b;font-style:italic;font-size:12.5px;margin-top:5px;
-              border-top:1px solid var(--rule-soft);padding-top:5px;}
+     box-shadow:0 6px 22px rgba(60,50,30,.16);border-radius:5px;
+     font:13px/1.45 var(--serif);padding:12px 14px;max-width:460px;}
+#tip .pop-title{font-weight:700;font-size:14.5px;line-height:1.25;margin-bottom:2px;}
+#tip .pop-meta{color:var(--muted);font:11px/1.3 var(--serif);font-feature-settings:"smcp" 1;
+               text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
+#tip .pop-grid{display:flex;gap:16px;align-items:flex-start;}
+#tip .pop-diagram{flex:0 0 auto;width:220px;background:#fcfbf2;border-left:2px solid var(--rule);padding:6px 8px;}
+#tip .pop-diagram svg{width:100%;height:auto;display:block;}
+#tip .pop-body{flex:1 1 auto;min-width:190px;max-width:300px;}
+#tip .pop-sec + .pop-sec{margin-top:11px;}
+#tip .pop-h{font:800 10px/1 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+            letter-spacing:.05em;color:var(--faint);margin-bottom:4px;}
+#tip .pop-body p{margin:0;font:italic 13px/1.5 var(--serif);color:#33312b;}
+#tip .pop-parents{display:flex;flex-direction:column;gap:3px;}
+#tip .pop-parent{font:600 11px/1.35 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+                 letter-spacing:.03em;color:var(--accent);}
+#tip .pop-parent .pn{color:var(--muted);font-weight:400;}
 </style>
 </head>
 <body>
@@ -188,18 +200,52 @@ body{margin:0;background:var(--paper);color:var(--ink);
   }
   function unlit(){ svg.classList.remove("dim"); svg.querySelectorAll(".lit,.lit-direct").forEach(el => el.classList.remove("lit", "lit-direct")); }
 
-  svg.addEventListener("mouseover", e => { const m = e.target.closest("[data-key]"); if (m) lit(m.getAttribute("data-key")); });
-  svg.addEventListener("mouseout",  e => { const m = e.target.closest("[data-key]"); if (m){ unlit(); tip.style.opacity = "0"; } });
-  svg.addEventListener("mousemove", e => {
-    const m = e.target.closest("[data-key]"); if (!m){ tip.style.opacity = "0"; return; }
-    const nd = byKey[m.getAttribute("data-key")]; if (!nd) return;
+  // popover: lazy-load the experiment's detail (thumbnail, rule, parents) and
+  // anchor it just below the hovered node, clamped to the viewport.
+  const detailCache = {};
+  let hoveringKey = null;
+  async function getDetail(key){
+    if (!(key in detailCache)){
+      try { detailCache[key] = await fetch("detail?key=" + encodeURIComponent(key)).then(r => r.ok ? r.json() : null); }
+      catch { detailCache[key] = null; }
+    }
+    return detailCache[key] || {};
+  }
+  function placePopover(anchorEl){
+    const r = anchorEl.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    const left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 12));
+    let top = r.bottom + 12;
+    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 12);   // flip above if it'd overflow
+    tip.style.left = left + "px"; tip.style.top = top + "px";
+  }
+  async function showPopover(anchorEl, nd){
+    const d = await getDetail(nd.key);
+    if (hoveringKey !== nd.key) return;                       // moved away before it loaded
     const lat = nd.lateness != null ? `lateness ${fmt(nd.lateness)}` : "failed";
-    tip.innerHTML = `<div class="tt-title">${esc(nd.title)}</div>`
-      + `<div class="tt-meta">#${esc(nd.n)} · ${lat}</div>`
-      + (nd.summary ? `<div class="tt-rule">${esc(nd.summary)}</div>` : "");
-    tip.style.left = (e.clientX + 13) + "px";
-    tip.style.top  = (e.clientY + 15) + "px";
+    const parents = (d.parents || []).map(p =>
+      `<span class="pop-parent">↳ ${esc(p.symbol)} <span class="pn">#${esc(p.n)}</span></span>`).join("");
+    tip.innerHTML =
+      `<div class="pop-title">${esc(nd.title)}</div>`
+      + `<div class="pop-meta">#${esc(nd.n)} · ${esc(nd.symbol || "")} · ${lat}</div>`
+      + `<div class="pop-grid">`
+      +   (d.thumb_svg ? `<div class="pop-diagram">${d.thumb_svg}</div>` : "")
+      +   `<div class="pop-body">`
+      +     (nd.summary ? `<div class="pop-sec"><div class="pop-h">Priority rule</div><p>${esc(nd.summary)}</p></div>` : "")
+      +     (parents ? `<div class="pop-sec"><div class="pop-h">Derived from</div><div class="pop-parents">${parents}</div></div>` : "")
+      +   `</div></div>`;
     tip.style.opacity = "1";
+    placePopover(anchorEl);
+  }
+
+  svg.addEventListener("mouseover", e => {
+    const m = e.target.closest("[data-key]"); if (!m) return;
+    const key = m.getAttribute("data-key"); hoveringKey = key;
+    lit(key);
+    const nd = byKey[key]; if (nd) showPopover(m, nd);
+  });
+  svg.addEventListener("mouseout", e => {
+    const m = e.target.closest("[data-key]"); if (!m) return;
+    hoveringKey = null; unlit(); tip.style.opacity = "0";
   });
   svg.addEventListener("click", e => { const m = e.target.closest("[data-key]");
     if (m) location.href = "/#exp=" + encodeURIComponent(m.getAttribute("data-key")); });
