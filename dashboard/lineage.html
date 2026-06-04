@@ -34,6 +34,7 @@ body{margin:0;background:var(--paper);color:var(--ink);
 .legend .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
 .legend .dot.kept{background:var(--ink);} .legend .dot.disc{background:var(--disc);}
 .legend .dot.fail{background:var(--accent);}
+.legend .ring{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--ochre);display:inline-block;}
 .legend .arc{width:18px;height:9px;border-top:1px solid var(--rule);display:inline-block;
              border-radius:9px 9px 0 0;}
 /* full-bleed diagram: breaks out of the reading column to the viewport,
@@ -51,6 +52,7 @@ body{margin:0;background:var(--paper);color:var(--ink);
 #lin .nk{fill:var(--ink);}
 #lin .ndd{fill:var(--disc);}
 #lin .nf{fill:var(--accent);}
+#lin .np{fill:none;stroke:var(--ochre);stroke-width:1.5;}   /* ring = pivot (new approach) */
 #lin .nlab{fill:var(--faint);font:10px/1 var(--serif);font-variant-numeric:lining-nums;}
 #lin .hit{cursor:pointer;}
 /* on hover: isolate the ancestry — drop everything else nearly out, then
@@ -98,6 +100,7 @@ body{margin:0;background:var(--paper);color:var(--ink);
     <span class="k"><span class="dot kept"></span>Kept (new best)</span>
     <span class="k"><span class="dot disc"></span>Worse than best</span>
     <span class="k"><span class="dot fail"></span>Failed</span>
+    <span class="k"><span class="ring"></span>Pivot (new approach)</span>
     <span class="k"><span class="arc"></span>Derived from its parent</span>
   </div>
 </header>
@@ -165,6 +168,7 @@ body{margin:0;background:var(--paper);color:var(--ink);
     const cls = nd.kind === "failed" ? "nf" : nd.kind === "kept" ? "nk" : "ndd";
     const r = nd.kind === "kept" ? 4 : 3;
     g += `<circle class="nd ${cls}" data-key="${esc(nd.key)}" cx="${x}" cy="${baseY}" r="${r}"/>`;
+    if (nd.pivot) g += `<circle class="nd np" data-key="${esc(nd.key)}" cx="${x}" cy="${baseY}" r="6.5"/>`;
     g += `<circle class="hit" data-key="${esc(nd.key)}" cx="${x}" cy="${baseY}" r="9" fill="transparent"/>`;
     // label reads top→bottom (rotate 90, anchored just below the node)
     g += `<text class="nlab" data-key="${esc(nd.key)}" x="${x}" y="${baseY + 8}" text-anchor="start" `

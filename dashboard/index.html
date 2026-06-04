@@ -50,6 +50,8 @@ body{
 .dash-meta .x{color:var(--accent);font-weight:700;line-height:1;}
 .dash-meta .bar{width:16px;height:0;border-top:2px solid var(--ink);display:inline-block;}
 .dash-meta .bar.dash{border-top:2px dashed var(--accent);}
+.dash-meta .ring{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--ochre);display:inline-block;}
+.pivot-mark{color:var(--ochre);margin-left:5px;font-weight:700;cursor:help;}
 #updated{color:var(--faint);font-style:italic;margin-left:auto;}
 #live{font-size:13px;}
 #live.on{color:#3f6e6e;}
@@ -68,6 +70,7 @@ body{
 #chart .pt-kept{fill:var(--ink);}
 #chart .pt-disc{fill:var(--disc);opacity:.6;}
 #chart .pt-failed{stroke:var(--accent);stroke-width:1.6;fill:none;}
+#chart .pt-pivot{fill:none;stroke:var(--ochre);stroke-width:1.5;}   /* ring = pivot (new approach) */
 #chart .target{stroke:var(--accent);stroke-width:1;stroke-dasharray:4 4;opacity:.85;}
 #chart .hit{cursor:pointer;}
 #chart .dot.hi{stroke:var(--ink);stroke-width:1.5;}      /* hovered from chart   */
@@ -206,6 +209,7 @@ svg.gantt rect[data-tip]:hover{filter:brightness(0.9);}                   /* sli
     <span class="k"><span class="x">&times;</span>Failed</span>
     <span class="k"><span class="bar"></span>Running best</span>
     <span class="k"><span class="bar dash"></span>Target</span>
+    <span class="k"><span class="ring"></span>Pivot (new approach)</span>
     <span id="updated"><!--UPDATED--></span>
     <span id="live" class="off"></span>
   </div>
@@ -314,6 +318,7 @@ function renderChart(points, target, animate){
       g += `<circle class="pt-kept dot${appear}" data-key="${k}" cx="${x}" cy="${y}" r="4"/>`;
     else
       g += `<circle class="pt-disc dot${appear}" data-key="${k}" cx="${x}" cy="${y}" r="2.6"/>`;
+    if (p.pivot) g += `<circle class="pt-pivot" cx="${x}" cy="${y}" r="7"/>`;   // pivot ring
     g += `<circle class="hit" data-key="${k}" cx="${x}" cy="${y}" r="10" fill="transparent"/>`;
   });
   // remember what we've drawn, so only genuinely-new dots animate next time

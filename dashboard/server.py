@@ -98,10 +98,15 @@ def render_rows(rows: list[dict]) -> str:
 
     out = []
     for r, best_row in reversed(list(zip(rows, is_best))):  # display newest first
+        is_pivot = r.get("pivot") == "1"
         cells = []
         for field, _, cls in COLUMNS:
             raw = r.get(field, "") or ""
-            if field == "status":
+            if field == "n":
+                mark = ('<span class="pivot-mark" title="new approach after a plateau">↻</span>'
+                        if is_pivot else "")
+                cell = (html.escape(raw) if raw else "—") + mark
+            elif field == "status":
                 cell = _status_cell(raw)
             elif field == "total_lateness":
                 txt = raw if raw else "—"
@@ -129,15 +134,16 @@ def chart_data(rows: list[dict]) -> list[dict]:
     points = []
     for r in rows:
         key = _row_key(r)
+        pv = r.get("pivot") == "1"
         val = _to_float(r.get("total_lateness", ""))
         if r.get("status", "").startswith("failed") or val is None:
-            points.append({"y": None, "kind": "failed", "key": key})
+            points.append({"y": None, "kind": "failed", "key": key, "pivot": pv})
             continue
         if best is None or val <= best:
             best, kind = val, "kept"
         else:
             kind = "discarded"
-        points.append({"y": val, "kind": kind, "key": key})
+        points.append({"y": val, "kind": kind, "key": key, "pivot": pv})
     return points
 
 
@@ -530,6 +536,7 @@ def lineage_data(rows: list[dict]) -> dict:
             "title": title, "symbol": slug(title),
             "summary": r.get("summary", "") or "",
             "lateness": val, "kind": kind,
+            "pivot": r.get("pivot") == "1",
             "parents": [p for p in (r.get("parents", "") or "").split(";") if p],
         })
     return {"nodes": nodes}

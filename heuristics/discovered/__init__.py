@@ -18,7 +18,7 @@ RUNS_CSV   = HERE / "runs.csv"
 CSV_FIELDS = [
     "n", "timestamp", "run_id", "scenario", "model", "iter",
     "total_lateness", "status", "file",
-    "title", "summary", "parents",
+    "title", "summary", "parents", "pivot",
 ]
 
 
@@ -54,6 +54,7 @@ def save_iteration(
     summary:        str = "",
     parents:        list[str] | None = None,
     schedule:       dict | None = None,
+    pivot:          bool = False,
 ) -> Path:
     """Save one iteration's code as a .py module and append a summary row
     to runs.csv. Returns the .py path.
@@ -117,5 +118,6 @@ def save_iteration(
             "title":          title,
             "summary":        summary,
             "parents":        parents_str,
+            "pivot":          "1" if pivot else "",
         })
     return py_path

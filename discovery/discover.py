@@ -143,6 +143,7 @@ def discover(model: str = MODEL, base_url: str | None = None,
         # best-so-far at this point (captured BEFORE we update best below).
         parent_best_iter = best_iter
 
+        pivot = False
         if it > 1:
             if since_improve >= PLATEAU_PATIENCE:
                 # stuck in a dead end — keep the plateaued attempt as a parent
@@ -150,6 +151,7 @@ def discover(model: str = MODEL, base_url: str | None = None,
                 print(f"--- plateau: {since_improve} iterations without improvement → new approach ---")
                 prompt = breakout_prompt(GANTT_SCENARIO, best_value, since_improve)
                 since_improve = 0   # give the new direction a fresh patience window
+                pivot = True        # this experiment is a deliberate change of direction
             else:
                 prompt = refine_prompt(GANTT_SCENARIO, prev_value, prev_error, best_value)
 
@@ -214,6 +216,7 @@ def discover(model: str = MODEL, base_url: str | None = None,
             summary        = summary,
             parents        = parents,
             schedule       = schedule_data,
+            pivot          = pivot,
         )
 
     print("\n=== best heuristic ===")
