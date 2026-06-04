@@ -40,7 +40,7 @@ load_dotenv()
 
 MODEL          = "openai/gpt-oss-120b"  # default: Hugging Face Inference
 ITERATIONS     = 10
-PLATEAU_PATIENCE = 6    # iterations with no improvement → ask for a new approach
+PLATEAU_PATIENCE = 5    # iterations with no improvement → ask for a new approach
 SCENARIOS      = TRAINING_BATTERY   # heuristics are scored on the mean across these
 GANTT_SCENARIO = SCENARIOS[0]       # always the first — keeps the diagram consistent
 EVAL_TIMEOUT_S = 5     # bound buggy priority() so it can't hang the workshop

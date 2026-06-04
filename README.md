@@ -123,7 +123,7 @@ overfitting one layout. The schedule diagram always uses the first scenario
 (`TRAINING`) for consistency. `HIDDEN_TEST`/`STRESS` stay held out for
 `leaderboard.py`.
 
-If the best score doesn't move for `PLATEAU_PATIENCE` iterations (default 6),
+If the best score doesn't move for `PLATEAU_PATIENCE` iterations (default 5),
 the loop stops asking for tweaks and prompts the model to **step back and try a
 fundamentally different strategy** — escaping dead ends and injecting creativity
 when it's needed. The plateaued experiment is kept as a parent (history is
