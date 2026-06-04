@@ -91,6 +91,10 @@ uv sync                          # installs huggingface-hub, matplotlib, python-
 echo "HF_TOKEN=hf_xxx" > .env    # your Hugging Face inference token
 ```
 
+The `HF_TOKEN` is only needed for the default (Hugging Face) path. To run
+entirely against a local model instead, skip it and see
+[Using a local LLM (LM Studio)](#using-a-local-llm-lm-studio).
+
 ## 1. Look at the baselines
 
 ```bash
@@ -114,11 +118,50 @@ Runs `ITERATIONS = 5` rounds against `MODEL = openai/gpt-oss-120b` on the
 3. feeds the score back, asks for a refinement.
 
 Knobs are module-level constants at the top of `discovery/discover.py`
-(`MODEL`, `ITERATIONS`, `SCENARIO`, `EVAL_TIMEOUT_S`, `MAX_TOKENS`).
+(`MODEL`, `ITERATIONS`, `SCENARIO`, `EVAL_TIMEOUT_S`, `MAX_TOKENS`). The
+model and endpoint can also be overridden per-run from the CLI (see below).
 
 Each iteration's code is saved to `heuristics/discovered/run_<ts>_iter<N>.py`
 (success or failure) and one row is appended to
 `heuristics/discovered/runs.csv`.
+
+### Using a local LLM (LM Studio)
+
+You can run discovery against a model on your own machine instead of Hugging
+Face — no token, no rate limits, no per-call cost. The default behavior is
+unchanged; local mode is fully opt-in via two flags.
+
+**1. Install LM Studio.** Download it from <https://lmstudio.ai> and install
+(macOS / Windows / Linux).
+
+**2. Get a model.** In LM Studio's **Search** tab, download a model that fits
+your machine — e.g. `openai/gpt-oss-20b`. Larger models give better
+heuristics but need more RAM/VRAM.
+
+**3. Start the local server.** Open the **Developer** (or **Local Server**)
+tab, load the model, and click **Start Server**. LM Studio exposes an
+OpenAI-compatible API, by default at `http://localhost:1234` (serving the API
+under `/v1`). To reach it from another machine on your LAN, enable "Serve on
+local network" and note the host's IP (e.g. `192.168.2.152`).
+
+**4. Run discovery against it.** Pass the server URL and the model id shown in
+LM Studio:
+
+```bash
+.venv/bin/python -m discovery.discover \
+    --api http://192.168.2.152:1234 \
+    --model openai/gpt-oss-20b
+```
+
+- `--api` is the server base URL. A trailing `/v1` is appended automatically,
+  so `http://host:1234` and `http://host:1234/v1` both work. Use
+  `http://localhost:1234` if LM Studio runs on the same machine.
+- `--model` is the model id exactly as LM Studio lists it.
+- `HF_TOKEN` is **not** required in local mode. If your server needs an API
+  key, set `LLM_API_KEY` in the environment (LM Studio ignores it).
+
+Without `--api`, discovery uses Hugging Face Inference with `MODEL` and
+`HF_TOKEN` exactly as before.
 
 ## 3. Evaluate any heuristics on every scenario
 

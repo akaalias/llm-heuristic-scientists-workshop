@@ -7,9 +7,15 @@ plus a row in runs.csv).
 Usage
 -----
     export HF_TOKEN=hf_xxx                       # or set it in .env
-    python -m discovery.discover                 # 5 iterations on TRAINING
+    python -m discovery.discover                 # 5 iterations on TRAINING (HF default)
+
+    # against a local LM Studio / OpenAI-compatible server:
+    python -m discovery.discover \
+        --api http://192.168.2.152:1234 \
+        --model openai/gpt-oss-20b
 """
 
+import argparse
 import os
 import traceback
 from datetime import datetime
@@ -29,11 +35,32 @@ from discovery.runtime            import compile_priority, time_limit
 load_dotenv()
 
 
-MODEL          = "openai/gpt-oss-120b"
+MODEL          = "openai/gpt-oss-120b"  # default: Hugging Face Inference
 ITERATIONS     = 5
 SCENARIO       = TRAINING
 EVAL_TIMEOUT_S = 5     # bound buggy priority() so it can't hang the workshop
 MAX_TOKENS     = 1500  # cap on assistant reply length per iteration
+
+
+def build_client(model: str, base_url: str | None) -> InferenceClient:
+    """Return an InferenceClient for either Hugging Face (default) or a local
+    OpenAI-compatible server (when `base_url` is given, e.g. LM Studio).
+
+    HF path uses HF_TOKEN. Local path uses LLM_API_KEY if set, else a dummy
+    key (LM Studio ignores it) — HF_TOKEN is not required when going local."""
+    if base_url:
+        return InferenceClient(base_url=base_url, api_key=os.environ.get("LLM_API_KEY", "lm-studio"))
+    return InferenceClient(model=model, token=os.environ["HF_TOKEN"])
+
+
+def normalize_api(url: str | None) -> str | None:
+    """LM Studio (and most OpenAI-compatible servers) serve the API under
+    `/v1`. Accept a bare host:port and append `/v1` if it's not already there,
+    so `--api http://host:1234` and `--api http://host:1234/v1` both work."""
+    if not url:
+        return None
+    url = url.rstrip("/")
+    return url if url.endswith("/v1") else url + "/v1"
 
 
 def build_schedule(priority_fn: PriorityFn) -> list[ScheduleEntry]:
@@ -45,9 +72,11 @@ def build_schedule(priority_fn: PriorityFn) -> list[ScheduleEntry]:
     return schedule
 
 
-def discover() -> None:
-    client = InferenceClient(model=MODEL, token=os.environ["HF_TOKEN"])
+def discover(model: str = MODEL, base_url: str | None = None) -> None:
+    client = build_client(model, base_url)
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    where  = base_url if base_url else "Hugging Face"
+    print(f"discovering with model={model} via {where}")
 
     history = [{"role": "system", "content": SYSTEM}]
     prompt  = initial_prompt(SCENARIO)
@@ -64,7 +93,9 @@ def discover() -> None:
             prompt = refine_prompt(SCENARIO, prev_value, prev_error, best_value)
 
         history.append({"role": "user", "content": prompt})
-        reply = client.chat_completion(messages=history, max_tokens=MAX_TOKENS).choices[0].message.content
+        reply = client.chat_completion(
+            messages=history, model=model, max_tokens=MAX_TOKENS
+        ).choices[0].message.content
         history.append({"role": "assistant", "content": reply})
 
         code = extract_code(reply)
@@ -93,7 +124,7 @@ def discover() -> None:
         save_iteration(
             run_id         = run_id,
             scenario       = SCENARIO.name,
-            model          = MODEL,
+            model          = model,
             iteration      = it,
             code           = code,
             total_lateness = value,
@@ -109,5 +140,25 @@ def discover() -> None:
     print(f"\nrun_id={run_id}, see {RUNS_CSV}")
 
 
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Discover scheduling heuristics with an LLM (HF by default, "
+                    "or a local OpenAI-compatible server via --api)."
+    )
+    parser.add_argument(
+        "--api", metavar="URL", default=None,
+        help="Base URL of a local/OpenAI-compatible server (e.g. LM Studio at "
+             "http://192.168.2.152:1234). '/v1' is appended if omitted. "
+             "When unset, uses Hugging Face Inference with HF_TOKEN.",
+    )
+    parser.add_argument(
+        "--model", default=MODEL,
+        help=f"Model id to request (default: {MODEL}). For a local server, use "
+             "the model id shown in LM Studio, e.g. openai/gpt-oss-20b.",
+    )
+    args = parser.parse_args()
+    discover(model=args.model, base_url=normalize_api(args.api))
+
+
 if __name__ == "__main__":
-    discover()
+    main()
