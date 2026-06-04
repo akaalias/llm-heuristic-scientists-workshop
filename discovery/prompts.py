@@ -56,10 +56,15 @@ def problem_brief(scenario: Scenario) -> str:
           - Stations have limited capacity (see STATION_CAPACITY above);
             "waiting" is passive (resting/cooling) and doesn't occupy a chef.
 
-        Training orders:
+        Example order set (ONE of several you are scored on):
         {scenario.orders}
 
         Objective: minimize total_lateness = sum of per-order lateness.
+
+        IMPORTANT: your heuristic is scored on the AVERAGE total_lateness across
+        SEVERAL different order sets, not just the one above. Write a general
+        rule that adapts to whatever orders/dishes/due-times it's given — do not
+        hard-code to the specific orders shown here.
     """).strip()
 
 

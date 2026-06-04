@@ -1,6 +1,8 @@
 """Problem instances. Each scenario bundles a kitchen and a set of orders."""
 
-from problem_definition.model import STATION_CAPACITY
+import random
+
+from problem_definition.model import RECIPES, STATION_CAPACITY
 from util.infra   import OrderSpec, Scenario
 
 
@@ -41,3 +43,32 @@ STRESS = Scenario(
 )
 
 ALL_SCENARIOS = [TRAINING, HIDDEN_TEST, STRESS]
+
+
+# ---- training battery -------------------------------------------------------
+# A heuristic that only wins on TRAINING is overfit. The discovery loop scores
+# each proposal on the AVERAGE lateness across this battery of order
+# combinations, so the winners have to generalise. Generated deterministically
+# (fixed seeds) so runs are reproducible; TRAINING stays first so the schedule
+# diagram is always drawn from the same, familiar example.
+
+_RECIPE_NAMES = list(RECIPES)
+
+
+def _generate_scenario(name: str, seed: int, n_orders: int) -> Scenario:
+    rng = random.Random(seed)
+    orders = []
+    for i in range(1, n_orders + 1):
+        arrival  = rng.choice([0, 0, 2, 4, 6, 8, 10])
+        n_dishes = rng.choice([1, 1, 2, 2, 3])
+        dishes   = [rng.choice(_RECIPE_NAMES) for _ in range(n_dishes)]
+        due      = arrival + rng.randint(16, 34)
+        orders.append(OrderSpec(id=i, arrival=arrival, due=due, dishes=dishes))
+    return Scenario(name=name, kitchen=dict(STATION_CAPACITY), orders=orders)
+
+
+TRAINING_VARIANTS = [
+    _generate_scenario(f"training_v{k}", seed=1000 + k, n_orders=4 + (k % 3))
+    for k in range(1, 6)
+]
+TRAINING_BATTERY = [TRAINING, *TRAINING_VARIANTS]   # TRAINING first = Gantt source

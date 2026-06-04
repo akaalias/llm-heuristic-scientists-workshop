@@ -25,7 +25,7 @@ from huggingface_hub import InferenceClient
 
 from problem_definition.check     import check
 from problem_definition.evaluate  import evaluate
-from problem_definition.scenarios import TRAINING
+from problem_definition.scenarios import TRAINING_BATTERY
 from heuristics.discovered        import RUNS_CSV, save_iteration
 from util.infra                   import ScheduleEntry
 from discovery.placer             import PriorityFn, construct, init_state
@@ -39,7 +39,8 @@ load_dotenv()
 
 MODEL          = "openai/gpt-oss-120b"  # default: Hugging Face Inference
 ITERATIONS     = 10
-SCENARIO       = TRAINING
+SCENARIOS      = TRAINING_BATTERY   # heuristics are scored on the mean across these
+GANTT_SCENARIO = SCENARIOS[0]       # always the first — keeps the diagram consistent
 EVAL_TIMEOUT_S = 5     # bound buggy priority() so it can't hang the workshop
 MAX_TOKENS     = 1500  # cap on assistant reply length per iteration
 
@@ -83,13 +84,27 @@ def describe(client: InferenceClient, model: str, code: str) -> tuple[str, str]:
         return "Untitled heuristic", f"(rule unavailable: {type(exc).__name__})"
 
 
-def build_schedule(priority_fn: PriorityFn) -> list[ScheduleEntry]:
-    """Run the placer for the current SCENARIO; verify the result is valid."""
-    schedule   = construct(SCENARIO.orders, SCENARIO.kitchen, priority_fn)
-    violations = check(schedule, SCENARIO.orders, SCENARIO.kitchen)
+def build_schedule(priority_fn: PriorityFn, scenario) -> list[ScheduleEntry]:
+    """Run the placer for `scenario`; verify the result is valid."""
+    schedule   = construct(scenario.orders, scenario.kitchen, priority_fn)
+    violations = check(schedule, scenario.orders, scenario.kitchen)
     if violations:
         raise ValueError(f"schedule violates constraints: {violations[:3]}")
     return schedule
+
+
+def evaluate_battery(priority_fn: PriorityFn) -> tuple[float, list[ScheduleEntry]]:
+    """Battle-test a heuristic across the whole training battery: returns the
+    MEAN total_lateness over all scenarios (so a rule can't just overfit one
+    layout), plus the schedule on the FIRST scenario — which the dashboard
+    always draws as the Gantt, keeping that diagram consistent."""
+    total, first_schedule = 0.0, None
+    for i, sc in enumerate(SCENARIOS):
+        schedule = build_schedule(priority_fn, sc)
+        total += evaluate(schedule, sc.orders)
+        if i == 0:
+            first_schedule = schedule
+    return total / len(SCENARIOS), first_schedule
 
 
 def discover(model: str = MODEL, base_url: str | None = None,
@@ -100,7 +115,7 @@ def discover(model: str = MODEL, base_url: str | None = None,
     print(f"discovering with model={model} via {where} ({iterations} iterations)")
 
     history = [{"role": "system", "content": SYSTEM}]
-    prompt  = initial_prompt(SCENARIO)
+    prompt  = initial_prompt(GANTT_SCENARIO)
 
     best_value: float | None = None
     best_code:  str   | None = None
@@ -115,7 +130,7 @@ def discover(model: str = MODEL, base_url: str | None = None,
         parent_best_iter = best_iter
 
         if it > 1:
-            prompt = refine_prompt(SCENARIO, prev_value, prev_error, best_value)
+            prompt = refine_prompt(GANTT_SCENARIO, prev_value, prev_error, best_value)
 
         history.append({"role": "user", "content": prompt})
         reply = client.chat_completion(
@@ -133,9 +148,8 @@ def discover(model: str = MODEL, base_url: str | None = None,
         schedule = None
         try:
             with time_limit(EVAL_TIMEOUT_S):
-                fn       = compile_priority(code)
-                schedule = build_schedule(fn)
-                value    = evaluate(schedule, SCENARIO.orders)
+                fn              = compile_priority(code)
+                value, schedule = evaluate_battery(fn)   # mean over the battery; schedule = scenario 0
         except Exception as exc:
             prev_error  = traceback.format_exc(limit=3)
             error_class = type(exc).__name__
@@ -152,14 +166,14 @@ def discover(model: str = MODEL, base_url: str | None = None,
         schedule_data = None
         if schedule is not None and value is not None:
             # map each step id to its dish name from the materialized graph
-            # (SCENARIO.orders are OrderSpecs whose `dishes` are just name strings)
-            _state = init_state(SCENARIO.orders, SCENARIO.kitchen)
+            # (orders are OrderSpecs whose `dishes` are just name strings)
+            _state = init_state(GANTT_SCENARIO.orders, GANTT_SCENARIO.kitchen)
             dish_name = {s.id: s.dish.name
                          for o in _state.orders for d in o.dishes for s in d.steps}
             schedule_data = {
                 "horizon": max((e.end for e in schedule), default=0),
                 "orders":  [{"id": o.id, "arrival": o.arrival, "due": o.due}
-                            for o in SCENARIO.orders],
+                            for o in GANTT_SCENARIO.orders],
                 "entries": [{"step": e.step, "station": e.station,
                              "start": e.start, "end": e.end,
                              "dish_name": dish_name.get(e.step, "")} for e in schedule],
@@ -178,7 +192,7 @@ def discover(model: str = MODEL, base_url: str | None = None,
 
         save_iteration(
             run_id         = run_id,
-            scenario       = SCENARIO.name,
+            scenario       = GANTT_SCENARIO.name,
             model          = model,
             iteration      = it,
             code           = code,

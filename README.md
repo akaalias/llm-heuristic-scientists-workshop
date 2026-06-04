@@ -110,16 +110,22 @@ Runs `random`, `EDD`, `SPT`, `LPT`, `least_slack` on every scenario
 .venv/bin/python -m discovery.discover
 ```
 
-Runs `ITERATIONS = 10` rounds against `MODEL = openai/gpt-oss-120b` on the
-`TRAINING` scenario. Each iteration:
+Runs `ITERATIONS = 10` rounds against `MODEL = openai/gpt-oss-120b`. Each iteration:
 
 1. asks the model for a `priority` function,
 2. compiles & runs it through the placer (bounded by `EVAL_TIMEOUT_S`),
 3. feeds the score back, asks for a refinement.
 
+Each proposal is **battle-tested across a battery of order combinations**
+(`TRAINING_BATTERY` — the `TRAINING` scenario plus several generated variants),
+scored on the **average** total_lateness so winners generalize instead of
+overfitting one layout. The schedule diagram always uses the first scenario
+(`TRAINING`) for consistency. `HIDDEN_TEST`/`STRESS` stay held out for
+`leaderboard.py`.
+
 Knobs are module-level constants at the top of `discovery/discover.py`
-(`MODEL`, `ITERATIONS`, `SCENARIO`, `EVAL_TIMEOUT_S`, `MAX_TOKENS`). The
-model and endpoint can also be overridden per-run from the CLI (see below).
+(`MODEL`, `ITERATIONS`, `SCENARIOS`, `EVAL_TIMEOUT_S`, `MAX_TOKENS`). Model,
+endpoint, and iteration count can also be overridden per-run from the CLI.
 
 Each iteration's code is saved to `heuristics/discovered/run_<ts>_iter<N>.py`
 (success or failure) and one row is appended to
@@ -269,7 +275,7 @@ Then evaluate it:
 
 ## Tips
 
-- The discovery loop trains on `TRAINING` only. Use `leaderboard.py`
+- The discovery loop trains on the `TRAINING_BATTERY` (TRAINING + variants). Use `leaderboard.py`
   to check generalization to `HIDDEN_TEST` and `STRESS`.
 - `STRESS` is grill-heavy by design — mention bottleneck stations in
   your prompt if you want the LLM to attack it.
