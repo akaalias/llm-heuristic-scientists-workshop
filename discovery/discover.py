@@ -29,14 +29,16 @@ from problem_definition.scenarios import TRAINING
 from heuristics.discovered        import RUNS_CSV, save_iteration
 from util.infra                   import ScheduleEntry
 from discovery.placer             import PriorityFn, construct
-from discovery.prompts            import SYSTEM, extract_code, initial_prompt, refine_prompt
+from discovery.prompts            import (
+    SYSTEM, describe_prompt, extract_code, initial_prompt, parse_description, refine_prompt,
+)
 from discovery.runtime            import compile_priority, time_limit
 
 load_dotenv()
 
 
 MODEL          = "openai/gpt-oss-120b"  # default: Hugging Face Inference
-ITERATIONS     = 5
+ITERATIONS     = 10
 SCENARIO       = TRAINING
 EVAL_TIMEOUT_S = 5     # bound buggy priority() so it can't hang the workshop
 MAX_TOKENS     = 1500  # cap on assistant reply length per iteration
@@ -61,6 +63,24 @@ def normalize_api(url: str | None) -> str | None:
         return None
     url = url.rstrip("/")
     return url if url.endswith("/v1") else url + "/v1"
+
+
+def describe(client: InferenceClient, model: str, code: str) -> tuple[str, str, str]:
+    """One-off call describing a heuristic in plain terms → (title, summary,
+    explanation). Kept out of the refinement history so it can't steer the next
+    proposal. Never raises — a failed description must not abort the run."""
+    try:
+        reply = client.chat_completion(
+            messages=[
+                {"role": "system", "content": "You explain kitchen-scheduling heuristics in plain, domain-grounded English."},
+                {"role": "user",   "content": describe_prompt(code)},
+            ],
+            model=model, max_tokens=MAX_TOKENS,
+        ).choices[0].message.content
+        return parse_description(reply)
+    except Exception as exc:
+        msg = f"(description unavailable: {type(exc).__name__})"
+        return "Untitled heuristic", msg, msg
 
 
 def build_schedule(priority_fn: PriorityFn) -> list[ScheduleEntry]:
@@ -88,6 +108,10 @@ def discover(model: str = MODEL, base_url: str | None = None) -> None:
 
     for it in range(1, ITERATIONS + 1):
         print(f"\n=== iteration {it} ===")
+
+        # provenance: this proposal is shaped by the previous iteration and the
+        # best-so-far at this point (captured BEFORE we update best below).
+        parent_best_iter = best_iter
 
         if it > 1:
             prompt = refine_prompt(SCENARIO, prev_value, prev_error, best_value)
@@ -121,6 +145,17 @@ def discover(model: str = MODEL, base_url: str | None = None) -> None:
                 best_value, best_code, best_iter = value, code, it
                 print(f"--- new best (iter {it}) ---")
 
+        parents = []
+        if it > 1:
+            parents.append(f"{run_id}|{it - 1}")          # the previous iteration
+        if parent_best_iter is not None:
+            bkey = f"{run_id}|{parent_best_iter}"          # the best-so-far it built on
+            if bkey not in parents:
+                parents.append(bkey)
+
+        title, summary, explanation = describe(client, model, code)
+        print(f"--- {title} ---\n{summary}")
+
         save_iteration(
             run_id         = run_id,
             scenario       = SCENARIO.name,
@@ -129,6 +164,10 @@ def discover(model: str = MODEL, base_url: str | None = None) -> None:
             code           = code,
             total_lateness = value,
             error          = error_class,
+            title          = title,
+            summary        = summary,
+            explanation    = explanation,
+            parents        = parents,
         )
 
     print("\n=== best heuristic ===")

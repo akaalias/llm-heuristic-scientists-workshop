@@ -110,7 +110,7 @@ Runs `random`, `EDD`, `SPT`, `LPT`, `least_slack` on every scenario
 .venv/bin/python -m discovery.discover
 ```
 
-Runs `ITERATIONS = 5` rounds against `MODEL = openai/gpt-oss-120b` on the
+Runs `ITERATIONS = 10` rounds against `MODEL = openai/gpt-oss-120b` on the
 `TRAINING` scenario. Each iteration:
 
 1. asks the model for a `priority` function,
