@@ -51,11 +51,8 @@ body{
 .dash-meta .bar{width:16px;height:0;border-top:2px solid var(--ink);display:inline-block;}
 .dash-meta .bar.dash{border-top:2px dashed var(--accent);}
 .dash-meta .ring{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--ochre);display:inline-block;}
-/* pivot row: the experiment number in an ochre ring (echoes the chart/lineage) */
-.pivot-n{display:inline-flex;align-items:center;justify-content:center;
-         min-width:21px;height:21px;padding:0 3px;box-sizing:border-box;
-         border:1.5px solid var(--ochre);border-radius:50%;cursor:help;
-         font-variant-numeric:lining-nums tabular-nums;}
+/* pivot row: an ochre left-rule (a deliberate change of direction) */
+.pivot-row{box-shadow:inset 3px 0 0 var(--ochre);}
 #updated{color:var(--faint);font-style:italic;margin-left:auto;}
 #live{font-size:13px;}
 #live.on{color:#3f6e6e;}

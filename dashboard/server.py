@@ -102,11 +102,7 @@ def render_rows(rows: list[dict]) -> str:
         cells = []
         for field, _, cls in COLUMNS:
             raw = r.get(field, "") or ""
-            if field == "n":
-                num = html.escape(raw) if raw else "—"
-                cell = (f'<span class="pivot-n" title="new approach after a plateau">{num}</span>'
-                        if is_pivot else num)
-            elif field == "status":
+            if field == "status":
                 cell = _status_cell(raw)
             elif field == "total_lateness":
                 txt = raw if raw else "—"
@@ -116,9 +112,14 @@ def render_rows(rows: list[dict]) -> str:
                 cell = html.escape(raw) if raw else '<span class="faint">—</span>'
             klass = f' class="{cls}"' if cls else ""
             cells.append(f"<td{klass}>{cell}</td>")
-        tr_cls = " best-row" if best_row else ""
+        tr_cls = ["row"]
+        if best_row:
+            tr_cls.append("best-row")
+        if is_pivot:
+            tr_cls.append("pivot-row")
         key = html.escape(_row_key(r))
-        out.append(f'<tr class="row{tr_cls}" data-key="{key}">{"".join(cells)}</tr>')
+        title = ' title="new approach after a plateau"' if is_pivot else ""
+        out.append(f'<tr class="{" ".join(tr_cls)}" data-key="{key}"{title}>{"".join(cells)}</tr>')
     return "".join(out)
 
 
