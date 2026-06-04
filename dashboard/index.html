@@ -170,6 +170,16 @@ pre.code .k{color:var(--accent);}                   /* keywords */
 pre.code .s{color:var(--ochre);}                    /* strings  */
 pre.code .c{color:var(--faint);font-style:italic;}  /* comments */
 pre.code .n{color:#3f6e6e;}                         /* numbers  */
+
+/* schedule Gantt (inline SVG) */
+.d-cap{font:italic 12px/1.4 var(--serif);color:var(--faint);margin:0 0 8px;}
+svg.gantt{width:100%;height:auto;display:block;margin:0 0 22px;}
+svg.gantt text{font:11px/1 var(--serif);fill:var(--muted);}
+svg.gantt .gg{stroke:var(--rule-soft);stroke-width:1;}
+svg.gantt .ga{stroke:var(--ink);stroke-width:1;}
+svg.gantt .gy{font-feature-settings:"smcp" 1;text-transform:uppercase;letter-spacing:.03em;}
+svg.gantt .gx{fill:var(--faint);}
+svg.gantt .gd{fill:var(--paper);font:10px/1 var(--mono);}
 </style>
 </head>
 <body>
@@ -377,6 +387,11 @@ function renderChart(points, target, animate){
       + `<h3 class="d-title">${esc(d.title)}</h3>`
       + (d.summary
           ? `<div class="d-rule-h">Priority rule</div><p class="d-summary">${esc(d.summary)}</p>`
+          : "")
+      + (d.gantt_svg                                                   // already HTML (inline SVG)
+          ? `<div class="d-code-h">Schedule</div>`
+            + `<div class="d-cap">colour = order · number = dish · dotted = arrival · dashed = due</div>`
+            + d.gantt_svg
           : "")
       + (d.code_html
           ? `<div class="d-code-h">Heuristic</div><pre class="code">${d.code_html}</pre>`  // already HTML

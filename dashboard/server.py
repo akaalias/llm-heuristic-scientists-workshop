@@ -22,6 +22,7 @@ import argparse
 import csv
 import html
 import json
+import math
 import os
 import re
 import time
@@ -217,6 +218,116 @@ def _code_from_py(text: str) -> str:
     return "\n".join(lines).strip("\n")
 
 
+# ---- schedule Gantt (inline SVG, Tufte palette) ---------------------------
+
+# muted, distinguishable order colours (ochre, teal, rust, violet, sage, …)
+ORDER_COLORS = ["#8a6a1e", "#3f6e6e", "#8c2f1f", "#5a4b8a", "#4a6b3a",
+                "#9b6a8a", "#2f5a8c", "#a8762e", "#6b6a60", "#5e7a7a"]
+
+
+def _order_of(step: str) -> int:
+    try:
+        return int(step.split(".")[0][1:])   # "o1.d0.s2" → 1
+    except (ValueError, IndexError):
+        return 0
+
+
+def _dish_of(step: str) -> int:
+    try:
+        return int(step.split(".")[1][1:])   # "o1.d0.s2" → 0
+    except (ValueError, IndexError):
+        return 0
+
+
+def _pack_slots(items: list[dict]) -> tuple[dict[int, int], int]:
+    """First-fit pack items (with start/end) into non-overlapping rows."""
+    slot_free: list[float] = []
+    slot_of: dict[int, int] = {}
+    for k in sorted(range(len(items)), key=lambda i: items[i]["start"]):
+        s, e = items[k]["start"], items[k]["end"]
+        for i, free in enumerate(slot_free):
+            if free <= s + 1e-9:
+                slot_of[k], slot_free[i] = i, e
+                break
+        else:
+            slot_of[k] = len(slot_free)
+            slot_free.append(e)
+    return slot_of, len(slot_free)
+
+
+def _gantt_ticks(horizon: float, count: int = 6) -> list[float]:
+    if horizon <= 0:
+        return [0]
+    raw = horizon / count
+    mag = 10 ** math.floor(math.log10(raw)) if raw > 0 else 1
+    step = next(m * mag for m in (1, 2, 5, 10) if m * mag >= raw)
+    out, t = [], 0.0
+    while t <= horizon + 1e-9:
+        out.append(round(t, 3))
+        t += step
+    return out
+
+
+def _fmtnum(t: float) -> str:
+    return str(int(t)) if float(t).is_integer() else f"{t:g}"
+
+
+def gantt_svg(sched: dict) -> str:
+    """Render a built schedule as an inline SVG Gantt: one row per station slot,
+    bars coloured by order with the dish index inside, and per-order arrival
+    (dotted) / due (dashed) lines. Returns '' if there's nothing to draw."""
+    entries = sched.get("entries") or []
+    if not entries:
+        return ""
+    orders = sched.get("orders") or []
+    horizon = sched.get("horizon") or max((e["end"] for e in entries), default=1) or 1
+
+    rows = []  # (label, [entry])
+    for st in sorted({e["station"] for e in entries}):
+        sub = [e for e in entries if e["station"] == st]
+        slot_of, n = _pack_slots(sub)
+        for slot in range(n):
+            label = f"{st} #{slot}" if n > 1 else st
+            rows.append((label, [sub[j] for j in range(len(sub)) if slot_of[j] == slot]))
+
+    oids = sorted({_order_of(e["step"]) for e in entries})
+    color = {oid: ORDER_COLORS[i % len(ORDER_COLORS)] for i, oid in enumerate(oids)}
+
+    W, L, R, T, B, rowH = 720, 84, 14, 10, 26, 22
+    x0, x1 = L, W - R
+    plot_bottom = T + len(rows) * rowH
+    H = plot_bottom + B
+    xf = lambda t: x0 + (t / horizon) * (x1 - x0)
+
+    g = []
+    for t in _gantt_ticks(horizon):
+        x = xf(t)
+        g.append(f'<line class="gg" x1="{x:.1f}" y1="{T}" x2="{x:.1f}" y2="{plot_bottom}"/>')
+        g.append(f'<text class="gx" x="{x:.1f}" y="{H-8}" text-anchor="middle">{_fmtnum(t)}</text>')
+    for o in orders:
+        if o.get("id") in color:
+            c = color[o["id"]]
+            for key, dash, op in (("arrival", "1 3", "0.5"), ("due", "4 3", "0.75")):
+                x = xf(o[key])
+                g.append(f'<line x1="{x:.1f}" y1="{T}" x2="{x:.1f}" y2="{plot_bottom}" '
+                         f'stroke="{c}" stroke-width="1" stroke-dasharray="{dash}" opacity="{op}"/>')
+    for y, (label, items) in enumerate(rows):
+        cy = T + y * rowH
+        g.append(f'<text class="gy" x="{L-8}" y="{cy+rowH/2+3:.1f}" text-anchor="end">{html.escape(label)}</text>')
+        for e in items:
+            bx, bw = xf(e["start"]), max(1.2, xf(e["end"]) - xf(e["start"]))
+            by, bh = cy + 3, rowH - 6
+            c = color[_order_of(e["step"])]
+            g.append(f'<rect x="{bx:.1f}" y="{by:.1f}" width="{bw:.1f}" height="{bh}" rx="1.5" '
+                     f'fill="{c}" stroke="#33312b" stroke-width="0.5"/>')
+            if bw >= 12:
+                g.append(f'<text class="gd" x="{bx+bw/2:.1f}" y="{by+bh/2+3:.1f}" '
+                         f'text-anchor="middle">{_dish_of(e["step"])+1}</text>')
+    g.append(f'<line class="ga" x1="{x0}" y1="{plot_bottom}" x2="{x1}" y2="{plot_bottom}"/>')
+    return (f'<svg class="gantt" viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" '
+            f'role="img" aria-label="schedule gantt">{"".join(g)}</svg>')
+
+
 def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
     """Everything the row-expand panel needs for one experiment: symbol, title,
     summary, explanation, highlighted code (read from its .py), and parent
@@ -227,11 +338,18 @@ def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
         return None
 
     code = ""
+    schedule = None
     fname = r.get("file", "")
     if fname:
         p = csv_dir / fname
         if p.exists():
             code = _code_from_py(p.read_text())
+        sp = csv_dir / (Path(fname).stem + ".schedule.json")   # run_..._iterN.schedule.json
+        if sp.exists():
+            try:
+                schedule = json.loads(sp.read_text())
+            except (ValueError, OSError):
+                schedule = None
 
     parents = []
     for pk in (r.get("parents", "") or "").split(";"):
@@ -249,6 +367,7 @@ def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
         "symbol": slug(title),
         "title": title,
         "summary": r.get("summary", "") or "",
+        "gantt_svg": gantt_svg(schedule) if schedule else "",
         "code_html": highlight_py(code) if code else "",
         "parents": parents,
         "lateness": r.get("total_lateness", "") or "",

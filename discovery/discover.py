@@ -129,6 +129,7 @@ def discover(model: str = MODEL, base_url: str | None = None) -> None:
         prev_value, prev_error = None, None
         value:       float | None = None
         error_class: str   | None = None
+        schedule = None
         try:
             with time_limit(EVAL_TIMEOUT_S):
                 fn       = compile_priority(code)
@@ -144,6 +145,18 @@ def discover(model: str = MODEL, base_url: str | None = None) -> None:
             if best_value is None or value < best_value:
                 best_value, best_code, best_iter = value, code, it
                 print(f"--- new best (iter {it}) ---")
+
+        # Capture the schedule so the dashboard can draw a Gantt without ever
+        # executing the heuristic itself (successful iterations only).
+        schedule_data = None
+        if schedule is not None and value is not None:
+            schedule_data = {
+                "horizon": max((e.end for e in schedule), default=0),
+                "orders":  [{"id": o.id, "arrival": o.arrival, "due": o.due}
+                            for o in SCENARIO.orders],
+                "entries": [{"step": e.step, "station": e.station,
+                             "start": e.start, "end": e.end} for e in schedule],
+            }
 
         parents = []
         if it > 1:
@@ -167,6 +180,7 @@ def discover(model: str = MODEL, base_url: str | None = None) -> None:
             title          = title,
             summary        = summary,
             parents        = parents,
+            schedule       = schedule_data,
         )
 
     print("\n=== best heuristic ===")

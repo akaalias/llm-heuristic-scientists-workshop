@@ -8,6 +8,7 @@ and may not be importable.
 """
 
 import csv
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -52,6 +53,7 @@ def save_iteration(
     title:          str = "",
     summary:        str = "",
     parents:        list[str] | None = None,
+    schedule:       dict | None = None,
 ) -> Path:
     """Save one iteration's code as a .py module and append a summary row
     to runs.csv. Returns the .py path.
@@ -61,12 +63,18 @@ def save_iteration(
 
     `title` names the rule, `summary` is the one-line kitchen instruction;
     `parents` is a list of `run_id|iter` keys it was derived from (provenance).
+    `schedule`, if given, is the built schedule (orders + placed steps), saved
+    as a sidecar .schedule.json so the dashboard can draw a Gantt without ever
+    executing the heuristic.
     """
     HERE.mkdir(parents=True, exist_ok=True)
     n = _next_index()
     status = "success" if error is None else f"failed:{error}"
     py_path = HERE / f"run_{run_id}_iter{iteration}.py"
     parents_str = ";".join(parents or [])
+
+    if schedule is not None:
+        (HERE / f"run_{run_id}_iter{iteration}.schedule.json").write_text(json.dumps(schedule))
 
     lateness_line = (
         f"  total_lateness: {total_lateness:.1f}\n" if total_lateness is not None else ""
