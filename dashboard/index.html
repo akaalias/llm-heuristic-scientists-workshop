@@ -301,8 +301,22 @@ function renderChart(points, target, animate){
     if (best != null) bp.push([xFor(i), yFor(best)]);
   });
   if (bp.length){
-    let d = `M${bp[0][0]},${bp[0][1]}`;
-    for (let i = 1; i < bp.length; i++) d += `H${bp[i][0]}V${bp[i][1]}`;
+    const R = 6;   // corner radius for the step joints
+    let d = `M${bp[0][0].toFixed(1)},${bp[0][1].toFixed(1)}`;
+    for (let i = 1; i < bp.length; i++){
+      const px = bp[i-1][0], py = bp[i-1][1], cx = bp[i][0], cy = bp[i][1];
+      const dy = cy - py;
+      const r = Math.min(R, (cx - px) / 2, Math.abs(dy) / 2);
+      if (dy === 0 || r < 0.5){
+        d += `H${cx.toFixed(1)}`;                 // flat run — no corner
+        if (dy !== 0) d += `V${cy.toFixed(1)}`;
+      } else {
+        const sy = Math.sign(dy);                 // round the H→V joint with a quadratic fillet
+        d += `H${(cx - r).toFixed(1)}`
+           + `Q${cx.toFixed(1)},${py.toFixed(1)} ${cx.toFixed(1)},${(py + sy * r).toFixed(1)}`
+           + `V${cy.toFixed(1)}`;
+      }
+    }
     g += `<path class="bestline" d="${d}"/>`;
   }
   // points: kept (ink), discarded (faint), failed (rust × pinned to the top =
