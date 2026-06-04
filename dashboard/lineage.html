@@ -29,18 +29,22 @@ body{margin:0;background:var(--paper);color:var(--ink);
 .nav a:hover{border-bottom-color:var(--accent);}
 .nav a:not(:last-child)::after{content:" · ";color:var(--faint);border:0;}
 
-.wrap{max-width:66.67vw;margin:0 auto;padding:8px 0 64px;}
-.legend{display:flex;flex-wrap:wrap;gap:10px 22px;font-size:14px;color:var(--muted);margin:10px 0 4px;}
+.legend{max-width:66.67vw;margin:10px auto 4px;display:flex;flex-wrap:wrap;gap:10px 22px;font-size:14px;color:var(--muted);}
 .legend .k{display:inline-flex;align-items:center;gap:7px;}
 .legend .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
 .legend .dot.kept{background:var(--ink);} .legend .dot.disc{background:var(--disc);}
 .legend .dot.fail{background:var(--accent);}
 .legend .arc{width:18px;height:9px;border-top:1px solid var(--rule);display:inline-block;
              border-radius:9px 9px 0 0;}
-.tbl-card{border-top:1.5px solid var(--ink);margin-top:14px;padding-top:6px;}
+/* full-bleed diagram: breaks out of the reading column to the viewport,
+   scrolls sideways when there are many experiments */
+#diagram{overflow-x:auto;border-top:1px solid var(--rule);margin-top:14px;
+         padding:24px 28px 16px;scrollbar-width:thin;scrollbar-color:var(--rule) transparent;}
+#diagram::-webkit-scrollbar{height:6px;}
+#diagram::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px;}
 
-/* lineage svg */
-#lin{width:100%;height:auto;display:block;}
+/* lineage svg — natural px width so it can exceed the viewport and scroll */
+#lin{display:block;}
 #lin text{font:12px/1 var(--serif);fill:var(--muted);}
 #lin .base{stroke:var(--rule);stroke-width:1;}
 #lin .edge{fill:none;stroke:var(--rule);stroke-width:1;}
@@ -81,9 +85,7 @@ body{margin:0;background:var(--paper);color:var(--ink);
     <span class="k"><span class="arc"></span>Derived from its parent</span>
   </div>
 </header>
-<div class="wrap">
-  <div class="tbl-card"><div id="diagram"></div></div>
-</div>
+<div id="diagram"></div>
 
 <div id="tip"></div>
 <script id="lineage-data" type="application/json"><!--LINEAGEDATA--></script>
@@ -113,41 +115,43 @@ body{margin:0;background:var(--paper);color:var(--ink);
   nodes.forEach(n => parentsOf[n.key].forEach(p => childrenOf[p].push(n.key)));
   const walk = (k, nbr, acc) => { (nbr[k] || []).forEach(x => { if (!acc.has(x)) { acc.add(x); walk(x, nbr, acc); } }); return acc; };
 
-  // arc-diagram layout: every experiment on one baseline (discovery order,
-  // left→right), with a semicircular arc above linking each to its parent(s).
-  const W = 1000, padX = 22, CAP = 230, labelH = 44, topPad = 8;
-  const x0 = padX, x1 = W - padX;
+  // full-bleed arc diagram: experiments on one baseline (discovery order),
+  // fixed node spacing (so it scrolls sideways with many), semicircular arcs
+  // above linking each to its parent(s).
   const n = nodes.length;
-  const xFor = (i) => n <= 1 ? (x0 + x1) / 2 : x0 + (x1 - x0) * i / (n - 1);
+  const padX = 28, topPad = 14, labelH = 38, CAP = 260, minSpacing = 26;
+  const avail = Math.max(320, (host.clientWidth || 1000) - 2 * padX - 8);
+  const spacing = n > 1 ? Math.max(minSpacing, avail / (n - 1)) : 0;
+  const Wpx = Math.round(2 * padX + (n - 1) * spacing);
+  const xFor = (i) => padX + i * spacing;
   const xOf = {}; nodes.forEach((nd, i) => xOf[nd.key] = xFor(i));
 
   const edges = [];
   nodes.forEach(nd => parentsOf[nd.key].forEach(pk =>
     edges.push({ c: nd.key, p: pk, dx: Math.abs(xOf[nd.key] - xOf[pk]) })));
-  const maxRy = edges.length ? Math.min(CAP, Math.max(...edges.map(e => e.dx / 2))) : 16;
+  const maxRy = edges.length ? Math.min(CAP, Math.max(...edges.map(e => e.dx / 2))) : 18;
   const baseY = topPad + maxRy;
   const H = Math.ceil(baseY + 14 + labelH);
 
   let g = "";
-  // arcs above the baseline (capped half-ellipse so a long-range link can't
-  // make the whole diagram absurdly tall)
+  // arcs above the baseline (capped half-ellipse for very long-range links)
   edges.forEach(e => {
     const a = Math.min(xOf[e.p], xOf[e.c]), b = Math.max(xOf[e.p], xOf[e.c]);
     const rx = (b - a) / 2, ry = Math.min(CAP, rx);
     g += `<path class="edge" data-c="${esc(e.c)}" data-p="${esc(e.p)}" `
        + `d="M${a.toFixed(1)},${baseY} A${rx.toFixed(1)},${ry.toFixed(1)} 0 0 1 ${b.toFixed(1)},${baseY}"/>`;
   });
-  g += `<line class="base" x1="${x0}" y1="${baseY}" x2="${x1}" y2="${baseY}"/>`;
+  g += `<line class="base" x1="${padX}" y1="${baseY}" x2="${Wpx - padX}" y2="${baseY}"/>`;
   nodes.forEach((nd, i) => {
     const x = xFor(i).toFixed(1);
     const cls = nd.kind === "failed" ? "nf" : nd.kind === "kept" ? "nk" : "ndd";
     const r = nd.kind === "kept" ? 4 : 3;
     g += `<circle class="nd ${cls}" data-key="${esc(nd.key)}" cx="${x}" cy="${baseY}" r="${r}"/>`;
-    g += `<circle class="hit" data-key="${esc(nd.key)}" cx="${x}" cy="${baseY}" r="8" fill="transparent"/>`;
+    g += `<circle class="hit" data-key="${esc(nd.key)}" cx="${x}" cy="${baseY}" r="9" fill="transparent"/>`;
     g += `<text class="nlab" data-key="${esc(nd.key)}" x="${x}" y="${baseY + 11}" text-anchor="end" `
        + `transform="rotate(-90 ${x} ${baseY + 11})">#${esc(nd.n)}</text>`;
   });
-  host.innerHTML = `<svg id="lin" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${g}</svg>`;
+  host.innerHTML = `<svg id="lin" width="${Wpx}" height="${H}" viewBox="0 0 ${Wpx} ${H}">${g}</svg>`;
 
   // interaction: hover a node → light its whole bloodline; click → dashboard
   const svg = document.getElementById("lin");
