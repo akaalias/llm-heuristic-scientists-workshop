@@ -37,7 +37,10 @@ body{
 .dash-head{max-width:66.67vw;margin:0 auto;padding:48px 0 6px;}
 .eyebrow{font:italic 16px/1 var(--serif);color:var(--accent);letter-spacing:.01em;margin-bottom:13px;}
 .dash-head h1{font-weight:400;font-size:34px;line-height:1.12;letter-spacing:-.01em;margin:0 0 8px;}
-.dash-head .sub{color:var(--muted);font-style:italic;font-size:18px;margin:0 0 14px;}
+.dash-head .sub{color:var(--muted);font-style:italic;font-size:18px;margin:0 0 10px;}
+.dash-head .nav{font-size:15px;margin:0 0 14px;}
+.dash-head .nav a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;}
+.dash-head .nav a:hover{border-bottom-color:var(--accent);}
 .dash-meta{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;font-size:14px;color:var(--muted);}
 .dash-meta .k{display:inline-flex;align-items:center;gap:7px;}
 .dash-meta .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
@@ -195,6 +198,7 @@ svg.gantt rect[data-tip]:hover{filter:brightness(0.9);}                   /* sli
   <div class="eyebrow">LLM Heuristic Scientists · run log</div>
   <h1>Heuristic discovery progress</h1>
   <p class="sub"><!--SUB--></p>
+  <div class="nav"><a href="/grid">Schedule grid &rarr;</a></div>
   <div class="dash-meta">
     <span class="k"><span class="dot kept"></span>Best so far</span>
     <span class="k"><span class="dot disc"></span>Worse than best</span>
@@ -478,6 +482,10 @@ function renderChart(points, target, animate){
   try { init = JSON.parse(document.getElementById("chart-data").textContent || "{}"); } catch (e) {}
   renderChart(init.points, init.target, false);   // seed existing dots without animating
   applySelection();
+
+  // deep link from the schedule grid: /#exp=<key> opens that experiment
+  const deep = location.hash.match(/exp=([^&]+)/);
+  if (deep) { try { openDetail(decodeURIComponent(deep[1]), true); } catch (e) {} }
 
   // live stream
   if (!tbody || !window.EventSource) return;

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1100">
+<title>Heuristic Discovery — Schedule Grid</title>
+<style>
+/* Shares the dashboard's Tufte system: cream paper, ink, one rust accent,
+   Palatino serif, hairlines. Small-multiples grid of label-free Gantts. */
+:root{
+  --paper:#fffff8; --ink:#111111; --muted:#6b6a60; --faint:#9b998c;
+  --rule:#d9d5c3; --rule-soft:#ece9da; --accent:#8c2f1f; --ochre:#8a6a1e;
+  --serif:"Palatino","Palatino Linotype","Book Antiqua","URW Palladio L",Georgia,serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;}
+html{background:var(--paper);}
+body{margin:0;background:var(--paper);color:var(--ink);
+     font:18px/1.6 var(--serif);font-feature-settings:"onum" 1,"liga" 1;
+     -webkit-font-smoothing:antialiased;}
+
+.dash-head{max-width:66.67vw;margin:0 auto;padding:48px 0 6px;}
+.eyebrow{font:italic 16px/1 var(--serif);color:var(--accent);letter-spacing:.01em;margin-bottom:13px;}
+.dash-head h1{font-weight:400;font-size:34px;line-height:1.12;letter-spacing:-.01em;margin:0 0 8px;}
+.dash-head .sub{color:var(--muted);font-style:italic;font-size:18px;margin:0 0 14px;max-width:60ch;}
+.nav{font-size:15px;}
+.nav a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;}
+.nav a:hover{border-bottom-color:var(--accent);}
+
+.wrap{max-width:66.67vw;margin:0 auto;padding:4px 0 64px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+      gap:24px 28px;margin-top:24px;}
+.cell{display:block;text-decoration:none;color:inherit;
+      border-top:1px solid var(--rule);padding-top:11px;}
+.cell-thumb{background:#fcfbf2;border-left:2px solid var(--rule);padding:6px 8px;}
+svg.thumb{width:100%;height:auto;display:block;}
+.cell:hover .cell-thumb{background:#f7f3e3;}
+.cell-cap{display:flex;align-items:baseline;gap:9px;margin-top:9px;}
+.cell-n{font:600 12px/1 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+        letter-spacing:.04em;color:var(--muted);}
+.cell-title{flex:1 1 auto;font-size:14px;color:var(--ink);
+            overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cell:hover .cell-title{color:var(--accent);}
+.cell-lat{font:13px/1 var(--serif);font-variant-numeric:lining-nums tabular-nums;color:var(--muted);}
+.empty{padding:28px 0;color:var(--muted);font-style:italic;}
+</style>
+</head>
+<body>
+<header class="dash-head">
+  <div class="eyebrow">LLM Heuristic Scientists · schedule grid</div>
+  <h1>Schedule grid</h1>
+  <p class="sub"><!--SUB--></p>
+  <div class="nav"><a href="/">&larr; Dashboard</a></div>
+</header>
+<div class="wrap">
+  <!--GRID-->
+</div>
+</body>
+</html>

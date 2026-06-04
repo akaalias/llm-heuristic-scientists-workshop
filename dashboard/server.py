@@ -29,10 +29,11 @@ import time
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 HERE        = Path(__file__).parent
 TEMPLATE    = HERE / "index.html"
+GRID_TMPL   = HERE / "grid.html"
 DEFAULT_CSV = HERE.parent / "heuristics" / "discovered" / "runs.csv"
 
 POLL_S      = 1.0   # how often the SSE loop checks the CSV for changes
@@ -337,6 +338,78 @@ def gantt_svg(sched: dict) -> str:
             f'role="img" aria-label="schedule gantt">{"".join(g)}</svg>')
 
 
+def load_schedule(csv_dir: Path, fname: str) -> dict | None:
+    """Read the sidecar schedule JSON saved next to an iteration's .py."""
+    if not fname:
+        return None
+    sp = csv_dir / (Path(fname).stem + ".schedule.json")
+    if sp.exists():
+        try:
+            return json.loads(sp.read_text())
+        except (ValueError, OSError):
+            return None
+    return None
+
+
+def gantt_thumb(sched: dict) -> str:
+    """A label-free thumbnail Gantt for the small-multiples grid: just the
+    coloured bars on their station rows — no numbers, axes, labels, or tips."""
+    entries = sched.get("entries") or []
+    if not entries:
+        return ""
+    horizon = sched.get("horizon") or max((e["end"] for e in entries), default=1) or 1
+    rows = []
+    for st in sorted({e["station"] for e in entries}):
+        sub = [e for e in entries if e["station"] == st]
+        slot_of, n = _pack_slots(sub)
+        for slot in range(n):
+            rows.append([sub[j] for j in range(len(sub)) if slot_of[j] == slot])
+
+    oids = sorted({_order_of(e["step"]) for e in entries})
+    pale = {oid: PALE_COLORS[i % len(PALE_COLORS)] for i, oid in enumerate(oids)}
+    color = {oid: ORDER_COLORS[i % len(ORDER_COLORS)] for i, oid in enumerate(oids)}
+
+    W, pad, rowH, barH = 240, 3, 8, 6
+    x0, x1 = pad, W - pad
+    H = pad * 2 + len(rows) * rowH
+    xf = lambda t: x0 + (t / horizon) * (x1 - x0)
+
+    g = []
+    for y, items in enumerate(rows):
+        cy = pad + y * rowH
+        for e in items:
+            bx = xf(e["start"])
+            bw = max(0.8, xf(e["end"]) - xf(e["start"]))
+            oid = _order_of(e["step"])
+            g.append(f'<rect x="{bx:.1f}" y="{cy+1:.1f}" width="{bw:.1f}" height="{barH}" rx="1" '
+                     f'fill="{pale[oid]}" stroke="{color[oid]}" stroke-width="0.5"/>')
+    return (f'<svg class="thumb" viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" '
+            f'role="img" aria-label="schedule thumbnail">{"".join(g)}</svg>')
+
+
+def render_grid(rows: list[dict], csv_dir: Path) -> str:
+    """Small-multiples grid: one thumbnail per experiment that has a schedule,
+    newest first, each linking back to its row on the dashboard."""
+    cells = []
+    for r in reversed(rows):
+        sched = load_schedule(csv_dir, r.get("file", ""))
+        if not sched:
+            continue
+        key = _row_key(r)
+        title = r.get("title", "") or "Untitled"
+        lat = r.get("total_lateness", "") or "—"
+        cells.append(
+            f'<a class="cell" href="/#exp={quote(key)}" title="{html.escape(title)}">'
+            f'<div class="cell-thumb">{gantt_thumb(sched)}</div>'
+            f'<div class="cell-cap"><span class="cell-n">#{html.escape(r.get("n",""))}</span>'
+            f'<span class="cell-title">{html.escape(title)}</span>'
+            f'<span class="cell-lat">{html.escape(lat)}</span></div></a>')
+    if not cells:
+        return ('<p class="empty">No schedules yet — run '
+                "<code>python -m discovery.discover</code> first.</p>")
+    return f'<div class="grid">{"".join(cells)}</div>'
+
+
 def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
     """Everything the row-expand panel needs for one experiment: symbol, title,
     summary, explanation, highlighted code (read from its .py), and parent
@@ -347,18 +420,12 @@ def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
         return None
 
     code = ""
-    schedule = None
     fname = r.get("file", "")
     if fname:
         p = csv_dir / fname
         if p.exists():
             code = _code_from_py(p.read_text())
-        sp = csv_dir / (Path(fname).stem + ".schedule.json")   # run_..._iterN.schedule.json
-        if sp.exists():
-            try:
-                schedule = json.loads(sp.read_text())
-            except (ValueError, OSError):
-                schedule = None
+    schedule = load_schedule(csv_dir, fname)
 
     parents = []
     for pk in (r.get("parents", "") or "").split(";"):
@@ -396,6 +463,17 @@ def render_page(template: str, csv_path: Path, target: float) -> str:
             .replace("<!--CHARTDATA-->", chart))
 
 
+def render_grid_page(template: str, csv_path: Path) -> str:
+    rows = load_rows(csv_path)
+    n = sum(1 for r in rows if load_schedule(csv_path.parent, r.get("file", "")))
+    sub = (f"{n} schedule{'' if n == 1 else 's'} — one thumbnail per experiment, "
+           "newest first. Click any to open it on the dashboard."
+           if n else "No schedules yet.")
+    return (template
+            .replace("<!--GRID-->", render_grid(rows, csv_path.parent))
+            .replace("<!--SUB-->", html.escape(sub)))
+
+
 class Handler(BaseHTTPRequestHandler):
     def __init__(self, *args, csv_path: Path, target: float, **kwargs):
         self.csv_path = csv_path
@@ -415,10 +493,26 @@ class Handler(BaseHTTPRequestHandler):
             self.stream_events()
         elif self.path.startswith("/detail"):
             self.serve_detail()
+        elif self.path in ("/grid", "/grid.html"):
+            self.serve_grid()
         elif self.path in ("/", "/index.html"):
             self.serve_page()
         else:
             self.send_error(404)
+
+    def serve_grid(self):
+        try:
+            page = render_grid_page(GRID_TMPL.read_text(), self.csv_path)
+        except Exception as exc:
+            self.send_error(500, f"render failed: {type(exc).__name__}: {exc}")
+            return
+        body = page.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
 
     def serve_detail(self):
         key = (parse_qs(urlparse(self.path).query).get("key") or [""])[0]
