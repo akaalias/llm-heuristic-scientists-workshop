@@ -134,14 +134,17 @@ def discover(model: str = MODEL, base_url: str | None = None,
     best_code:  str   | None = None
     best_iter:  int   | None = None
     prev_value, prev_error = None, None
-    since_improve = 0   # iterations since the best last moved (plateau detector)
+    since_improve = 0          # iterations since the best last moved (plateau detector)
+    branch_best_iter:  int   | None = None   # best of the CURRENT direction (reset at each pivot)
+    branch_best_value: float | None = None
 
     for it in range(1, iterations + 1):
         print(f"\n=== iteration {it} ===")
 
-        # provenance: this proposal is shaped by the previous iteration and the
-        # best-so-far at this point (captured BEFORE we update best below).
-        parent_best_iter = best_iter
+        # provenance: a proposal builds on the previous iteration and the best of
+        # the CURRENT direction (reset at each pivot) — so after a pivot it
+        # builds on the new branch, not the old champion we deliberately left.
+        parent_best_iter = branch_best_iter
 
         pivot = False
         if it > 1:
@@ -150,8 +153,9 @@ def discover(model: str = MODEL, base_url: str | None = None,
                 # (history is retained) but ask for a fundamentally new approach
                 print(f"--- plateau: {since_improve} iterations without improvement → new approach ---")
                 prompt = breakout_prompt(GANTT_SCENARIO, best_value, since_improve)
-                since_improve = 0   # give the new direction a fresh patience window
-                pivot = True        # this experiment is a deliberate change of direction
+                since_improve = 0      # give the new direction a fresh patience window
+                branch_best_iter, branch_best_value = None, None  # fresh lineage — drop the old branch
+                pivot = True             # this experiment is a deliberate change of direction
             else:
                 prompt = refine_prompt(GANTT_SCENARIO, prev_value, prev_error, best_value)
 
@@ -186,6 +190,8 @@ def discover(model: str = MODEL, base_url: str | None = None,
                 best_value, best_code, best_iter = value, code, it
                 improved = True
                 print(f"--- new best (iter {it}) ---")
+            if branch_best_value is None or value < branch_best_value:
+                branch_best_value, branch_best_iter = value, it   # best of the current direction
 
         since_improve = 0 if improved else since_improve + 1
 
