@@ -34,31 +34,26 @@ body{margin:0;background:var(--paper);color:var(--ink);
 .legend .k{display:inline-flex;align-items:center;gap:7px;}
 .legend .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
 .legend .dot.kept{background:var(--ink);} .legend .dot.disc{background:var(--disc);}
-.legend .x{color:var(--accent);font-weight:700;line-height:1;}
-.legend .arc{width:18px;height:9px;border-bottom:1px solid var(--rule);display:inline-block;
-             border-radius:0 0 9px 9px;}
+.legend .dot.fail{background:var(--accent);}
+.legend .arc{width:18px;height:9px;border-top:1px solid var(--rule);display:inline-block;
+             border-radius:9px 9px 0 0;}
 .tbl-card{border-top:1.5px solid var(--ink);margin-top:14px;padding-top:6px;}
 
 /* lineage svg */
 #lin{width:100%;height:auto;display:block;}
 #lin text{font:12px/1 var(--serif);fill:var(--muted);}
-#lin .gg{stroke:var(--rule-soft);stroke-width:1;}
-#lin .ax{stroke:var(--ink);stroke-width:1;}
-#lin .tg{stroke:var(--accent);stroke-width:1;stroke-dasharray:4 4;opacity:.85;}
-#lin .tl{fill:var(--accent);font-style:italic;}
-#lin .yl{fill:var(--faint);}
-#lin .xl{fill:var(--faint);font-feature-settings:"smcp" 1;text-transform:uppercase;letter-spacing:.05em;}
+#lin .base{stroke:var(--rule);stroke-width:1;}
 #lin .edge{fill:none;stroke:var(--rule);stroke-width:1;}
 #lin .nd{cursor:pointer;}
 #lin .nk{fill:var(--ink);}
 #lin .ndd{fill:var(--disc);}
-#lin .nf{stroke:var(--accent);stroke-width:1.6;fill:none;}
+#lin .nf{fill:var(--accent);}
+#lin .nlab{fill:var(--faint);font:10px/1 var(--serif);font-variant-numeric:lining-nums;}
 #lin .hit{cursor:pointer;}
 /* dim everything, then re-light the hovered bloodline (order: lit wins) */
-#lin.dim .nd,#lin.dim .edge{opacity:.16;}
-#lin.dim .nd.lit{opacity:1;}
-#lin.dim .edge.lit{opacity:1;stroke:var(--ink);stroke-width:1.5;}
-#lin .nd.lit.nk{r:5.5;}
+#lin.dim .nd,#lin.dim .edge,#lin.dim .nlab{opacity:.14;}
+#lin.dim .nd.lit,#lin.dim .nlab.lit{opacity:1;}
+#lin.dim .edge.lit{opacity:1;stroke:var(--ink);stroke-width:1.4;}
 
 .empty{padding:28px 0;color:var(--muted);font-style:italic;}
 
@@ -80,11 +75,10 @@ body{margin:0;background:var(--paper);color:var(--ink);
   <p class="sub"><!--SUB--></p>
   <div class="nav"><a href="/">&larr; Dashboard</a><a href="/grid">Schedule grid</a></div>
   <div class="legend">
-    <span class="k"><span class="dot kept"></span>Kept (best so far)</span>
+    <span class="k"><span class="dot kept"></span>Kept (new best)</span>
     <span class="k"><span class="dot disc"></span>Worse than best</span>
-    <span class="k"><span class="x">&times;</span>Failed</span>
-    <span class="k"><span class="arc"></span>Derived from</span>
-    <span class="k">y = total lateness · lower is better</span>
+    <span class="k"><span class="dot fail"></span>Failed</span>
+    <span class="k"><span class="arc"></span>Derived from its parent</span>
   </div>
 </header>
 <div class="wrap">
@@ -119,38 +113,40 @@ body{margin:0;background:var(--paper);color:var(--ink);
   nodes.forEach(n => parentsOf[n.key].forEach(p => childrenOf[p].push(n.key)));
   const walk = (k, nbr, acc) => { (nbr[k] || []).forEach(x => { if (!acc.has(x)) { acc.add(x); walk(x, nbr, acc); } }); return acc; };
 
-  // geometry — y = lateness (0 / target near bottom), failed pinned to the top
-  const W = 1000, L = 54, R = 18, T = 16, B = 30, H = 360;
-  const x0 = L, x1 = W - R, y0 = T, y1 = H - B;
-  const tgt = (typeof data.target === "number") ? data.target : 0;
-  const vals = nodes.filter(n => n.lateness != null).map(n => n.lateness);
-  const lo = Math.min(0, tgt), hi = Math.max(vals.length ? Math.max(...vals) : 1, tgt);
-  const span = (hi - lo) || 1, dmin = lo - span*0.08, dmax = hi + span*0.10;
+  // arc-diagram layout: every experiment on one baseline (discovery order,
+  // left→right), with a semicircular arc above linking each to its parent(s).
+  const W = 1000, padX = 22, CAP = 230, labelH = 44, topPad = 8;
+  const x0 = padX, x1 = W - padX;
   const n = nodes.length;
-  const xFor = (i) => n <= 1 ? (x0+x1)/2 : x0 + (x1-x0)*i/(n-1);
-  const yFor = (v) => y1 - (v - dmin)/(dmax - dmin)*(y1 - y0);
-  const pos = {}; nodes.forEach((nd, i) => { pos[nd.key] = { x: xFor(i), y: nd.lateness != null ? yFor(nd.lateness) : y0 + 6 }; });
+  const xFor = (i) => n <= 1 ? (x0 + x1) / 2 : x0 + (x1 - x0) * i / (n - 1);
+  const xOf = {}; nodes.forEach((nd, i) => xOf[nd.key] = xFor(i));
+
+  const edges = [];
+  nodes.forEach(nd => parentsOf[nd.key].forEach(pk =>
+    edges.push({ c: nd.key, p: pk, dx: Math.abs(xOf[nd.key] - xOf[pk]) })));
+  const maxRy = edges.length ? Math.min(CAP, Math.max(...edges.map(e => e.dx / 2))) : 16;
+  const baseY = topPad + maxRy;
+  const H = Math.ceil(baseY + 14 + labelH);
 
   let g = "";
-  for (const t of niceTicks(lo, hi, 4)){ if (Math.abs(t - tgt) < span*1e-3) continue; const y = yFor(t);
-    g += `<line class="gg" x1="${x0}" y1="${y}" x2="${x1}" y2="${y}"/><text class="yl" x="${x0-9}" y="${y+4}" text-anchor="end">${fmt(t)}</text>`; }
-  g += `<line class="ax" x1="${x0}" y1="${y0}" x2="${x0}" y2="${y1}"/><line class="ax" x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}"/>`;
-  const yt = yFor(tgt);
-  g += `<line class="tg" x1="${x0}" y1="${yt}" x2="${x1}" y2="${yt}"/><text class="tl" x="${x0-9}" y="${yt+4}" text-anchor="end">target ${fmt(tgt)}</text>`;
-  // arcs (parent → child)
-  nodes.forEach(nd => parentsOf[nd.key].forEach(pk => {
-    const a = pos[pk], b = pos[nd.key]; if (!a || !b) return;
-    const mx = (a.x + b.x)/2, my = Math.min(a.y, b.y) - Math.min(70, Math.abs(b.x - a.x)*0.35 + 12);
-    g += `<path class="edge" data-c="${esc(nd.key)}" data-p="${esc(pk)}" d="M${a.x},${a.y} Q${mx},${my} ${b.x},${b.y}"/>`;
-  }));
-  // nodes
-  nodes.forEach(nd => { const p = pos[nd.key];
-    if (nd.kind === "failed") g += `<path class="nd nf" data-key="${esc(nd.key)}" d="${xMark(p.x, p.y, 4)}"/>`;
-    else if (nd.kind === "kept") g += `<circle class="nd nk" data-key="${esc(nd.key)}" cx="${p.x}" cy="${p.y}" r="4.5"/>`;
-    else g += `<circle class="nd ndd" data-key="${esc(nd.key)}" cx="${p.x}" cy="${p.y}" r="3.2"/>`;
-    g += `<circle class="hit" data-key="${esc(nd.key)}" cx="${p.x}" cy="${p.y}" r="9" fill="transparent"/>`;
+  // arcs above the baseline (capped half-ellipse so a long-range link can't
+  // make the whole diagram absurdly tall)
+  edges.forEach(e => {
+    const a = Math.min(xOf[e.p], xOf[e.c]), b = Math.max(xOf[e.p], xOf[e.c]);
+    const rx = (b - a) / 2, ry = Math.min(CAP, rx);
+    g += `<path class="edge" data-c="${esc(e.c)}" data-p="${esc(e.p)}" `
+       + `d="M${a.toFixed(1)},${baseY} A${rx.toFixed(1)},${ry.toFixed(1)} 0 0 1 ${b.toFixed(1)},${baseY}"/>`;
   });
-  g += `<text class="xl" x="${(x0+x1)/2}" y="${H-7}" text-anchor="middle">experiment →</text>`;
+  g += `<line class="base" x1="${x0}" y1="${baseY}" x2="${x1}" y2="${baseY}"/>`;
+  nodes.forEach((nd, i) => {
+    const x = xFor(i).toFixed(1);
+    const cls = nd.kind === "failed" ? "nf" : nd.kind === "kept" ? "nk" : "ndd";
+    const r = nd.kind === "kept" ? 4 : 3;
+    g += `<circle class="nd ${cls}" data-key="${esc(nd.key)}" cx="${x}" cy="${baseY}" r="${r}"/>`;
+    g += `<circle class="hit" data-key="${esc(nd.key)}" cx="${x}" cy="${baseY}" r="8" fill="transparent"/>`;
+    g += `<text class="nlab" data-key="${esc(nd.key)}" x="${x}" y="${baseY + 11}" text-anchor="end" `
+       + `transform="rotate(-90 ${x} ${baseY + 11})">#${esc(nd.n)}</text>`;
+  });
   host.innerHTML = `<svg id="lin" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">${g}</svg>`;
 
   // interaction: hover a node → light its whole bloodline; click → dashboard
@@ -160,7 +156,7 @@ body{margin:0;background:var(--paper);color:var(--ink);
     const set = new Set([key]); walk(key, parentsOf, set); walk(key, childrenOf, set);
     svg.classList.add("dim");
     svg.querySelectorAll(".lit").forEach(el => el.classList.remove("lit"));
-    set.forEach(k => svg.querySelectorAll(`.nd[data-key="${q(k)}"]`).forEach(el => el.classList.add("lit")));
+    set.forEach(k => svg.querySelectorAll(`[data-key="${q(k)}"]`).forEach(el => el.classList.add("lit")));
     svg.querySelectorAll(".edge").forEach(e => {
       if (set.has(e.getAttribute("data-c")) && set.has(e.getAttribute("data-p"))) e.classList.add("lit");
     });
