@@ -203,20 +203,30 @@ function renderChart(points, target, animate){
       + `<div class="d-lineage"><div class="d-lineage-h">Derived from</div>${lineage}</div>`
       + `</aside>`;
 
+    // every battery sample's schedule, listed vertically below the code
+    const scheds = (d.schedules && d.schedules.length)
+      ? `<div class="d-code-h d-sched-h">Schedules across the battery</div>`
+        + `<div class="d-cap">colour = order · number = dish · dotted = arrival · dashed = due</div>`
+        + `<div class="d-scheds">`
+        + d.schedules.map(s =>
+            `<div class="d-sched">`
+            + `<div class="d-sched-cap"><span class="d-sched-name">${esc(s.name || "sample")}</span>`
+            +   `<span class="d-sched-lat">lateness ${esc(s.lateness)}</span></div>`
+            + s.svg                                                    // already HTML (inline SVG)
+            + `</div>`).join("")
+        + `</div>`
+      : "";
+
     const main =
       `<div class="d-main">`
       + `<h3 class="d-title">${esc(d.title)}</h3>`
       + (d.summary
           ? `<div class="d-rule-h">Priority rule</div><p class="d-summary">${esc(d.summary)}</p>`
           : "")
-      + (d.gantt_svg                                                   // already HTML (inline SVG)
-          ? `<div class="d-code-h">Schedule</div>`
-            + `<div class="d-cap">colour = order · number = dish · dotted = arrival · dashed = due</div>`
-            + d.gantt_svg
-          : "")
       + (d.code_html
           ? `<div class="d-code-h">Heuristic</div><pre class="code">${d.code_html}</pre>`  // already HTML
           : `<p class="d-loading">no code saved</p>`)
+      + scheds
       + `</div>`;
 
     return `<div class="detail-inner">${meta}${main}</div>`;

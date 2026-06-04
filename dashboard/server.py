@@ -325,7 +325,7 @@ def gantt_svg(sched: dict) -> str:
     rows = _station_rows(entries)
     color, pale = _order_palettes(entries)
 
-    W, L, R, T, B, rowH = 720, 84, 14, 10, 26, 22
+    W, L, R, T, B, rowH = 720, 84, 14, 26, 26, 22   # T leaves headroom for the outcome marks
     x0, x1 = L, W - R
     plot_bottom = T + len(rows) * rowH
     H = plot_bottom + B
@@ -336,6 +336,12 @@ def gantt_svg(sched: dict) -> str:
         x = xf(t)
         g.append(f'<line class="gg" x1="{x:.1f}" y1="{T}" x2="{x:.1f}" y2="{plot_bottom}"/>')
         g.append(f'<text class="gx" x="{x:.1f}" y="{H-8}" text-anchor="middle">{_fmtnum(t)}</text>')
+    # when each order actually finishes (last end across all its steps) — used to
+    # flag whether it met or missed its due time
+    finish: dict[int, float] = {}
+    for e in entries:
+        oid = _order_of(e["step"])
+        finish[oid] = max(finish.get(oid, 0.0), e["end"])
     for o in orders:
         if o.get("id") in color:
             c = color[o["id"]]
@@ -343,6 +349,27 @@ def gantt_svg(sched: dict) -> str:
                 x = xf(o[key])
                 g.append(f'<line x1="{x:.1f}" y1="{T}" x2="{x:.1f}" y2="{plot_bottom}" '
                          f'stroke="{c}" stroke-width="1" stroke-dasharray="{dash}" opacity="{op}"/>')
+
+    # outcome marks above each due line: green ✓ if on time, red × if late.
+    # Orders that share a due time would land on the same x, so group by due and
+    # fan the marks out horizontally (centred on the line) to keep each legible.
+    my = T - 11   # marker centre, in the headroom above the plot
+    by_due: dict[float, list[tuple[int, bool]]] = {}
+    for o in orders:
+        if o.get("id") in color and o.get("due") is not None:
+            met = finish.get(o["id"], 0.0) <= o["due"] + 1e-9
+            by_due.setdefault(o["due"], []).append((o["id"], met))
+    for due, marks in by_due.items():
+        xd, k = xf(due), len(marks)
+        for i, (oid, met) in enumerate(sorted(marks)):
+            cx = xd + (i - (k - 1) / 2) * 11     # fan co-due marks out, centred on the line
+            if met:
+                g.append(f'<path class="gmet" d="M{cx-4:.1f},{my:.1f} '
+                         f'L{cx-1:.1f},{my+3.5:.1f} L{cx+4.5:.1f},{my-4:.1f}"/>')
+            else:
+                r = 4
+                g.append(f'<path class="gmiss" d="M{cx-r:.1f},{my-r}L{cx+r:.1f},{my+r}'
+                         f'M{cx+r:.1f},{my-r}L{cx-r:.1f},{my+r}"/>')
     for y, (label, items) in enumerate(rows):
         cy = T + y * rowH
         g.append(f'<text class="gy" x="{L-8}" y="{cy+rowH/2+3:.1f}" text-anchor="end">{html.escape(label)}</text>')
@@ -387,12 +414,6 @@ def schedule_samples(sched: dict | None) -> list[dict]:
     if "samples" in sched:
         return sched["samples"]
     return [sched] if sched.get("entries") else []
-
-
-def first_sample(sched: dict | None) -> dict | None:
-    """The first sample's schedule — what the detail-view Gantt draws."""
-    s = schedule_samples(sched)
-    return s[0] if s else None
 
 
 def gantt_thumb(sched: dict) -> str:
@@ -472,8 +493,9 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
 
 def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
     """Everything the row-expand panel needs for one experiment: symbol, title,
-    summary, explanation, highlighted code (read from its .py), and parent
-    experiments resolved to their symbols. None if the key isn't found."""
+    summary, highlighted code (read from its .py), a Gantt per battery sample,
+    and parent experiments resolved to their symbols. None if the key isn't
+    found. `thumb_svg` (first sample) is also returned for the lineage popover."""
     by_key = {_row_key(r): r for r in rows}
     r = by_key.get(key)
     if r is None:
@@ -485,7 +507,8 @@ def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
         p = csv_dir / fname
         if p.exists():
             code = _code_from_py(p.read_text())
-    sched0 = first_sample(load_schedule(csv_dir, fname))   # the detail Gantt = first sample
+    samples = schedule_samples(load_schedule(csv_dir, fname))   # one per battery sample
+    sched0 = samples[0] if samples else None                    # thumb (lineage popover)
 
     parents = []
     for pk in (r.get("parents", "") or "").split(";"):
@@ -503,7 +526,8 @@ def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
         "symbol": slug(title),
         "title": title,
         "summary": r.get("summary", "") or "",
-        "gantt_svg": gantt_svg(sched0) if sched0 else "",
+        "schedules": [{"name": s.get("name", ""), "lateness": s.get("lateness", ""),
+                       "svg": gantt_svg(s)} for s in samples],
         "thumb_svg": gantt_thumb(sched0) if sched0 else "",
         "code_html": highlight_py(code) if code else "",
         "parents": parents,

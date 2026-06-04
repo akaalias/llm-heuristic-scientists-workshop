@@ -137,8 +137,15 @@ pre.code .s{color:var(--ochre);}                    /* strings  */
 pre.code .c{color:var(--faint);font-style:italic;}  /* comments */
 pre.code .n{color:#3f6e6e;}                         /* numbers  */
 
-/* schedule Gantt (inline SVG) */
+/* schedule Gantts (inline SVG) — one per battery sample, listed below the code */
 .d-cap{font:italic 12px/1.4 var(--serif);color:var(--faint);margin:0 0 8px;}
+.d-sched-h{margin-top:24px;}
+.d-scheds{display:flex;flex-direction:column;gap:20px;}
+.d-sched-cap{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 5px;}
+.d-sched-name{font:600 11px/1.3 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+              letter-spacing:.05em;color:var(--muted);}
+.d-sched-lat{font:13px/1 var(--serif);font-variant-numeric:lining-nums tabular-nums;color:var(--muted);}
+.d-scheds svg.gantt{margin:0;}   /* the list gap controls spacing, not per-svg margin */
 svg.gantt{width:100%;height:auto;display:block;margin:0 0 22px;}
 svg.gantt text{font:11px/1 var(--serif);fill:var(--muted);}
 svg.gantt .gg{stroke:var(--rule-soft);stroke-width:1;}
@@ -146,6 +153,9 @@ svg.gantt .ga{stroke:var(--ink);stroke-width:1;}
 svg.gantt .gy{font-feature-settings:"smcp" 1;text-transform:uppercase;letter-spacing:.03em;}
 svg.gantt .gx{fill:var(--faint);}
 svg.gantt .gd{fill:#33312b;font:10px/1 var(--mono);pointer-events:none;}  /* dish # — ink on pale fill */
+svg.gantt .gmiss{stroke:var(--accent);stroke-width:1.5;fill:none;}              /* × atop a missed due line */
+svg.gantt .gmet{stroke:#4a7a3a;stroke-width:1.6;fill:none;stroke-linecap:round;
+                stroke-linejoin:round;}                                         /* ✓ atop a met due line */
 svg.gantt rect[data-tip]:hover{filter:brightness(0.9);}                   /* slightly darker on hover */
 
 /* popover for schedule bars: a dark ink chip, cream text, anchored centred
