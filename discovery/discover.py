@@ -26,12 +26,12 @@ from huggingface_hub import InferenceClient
 from problem_definition.check     import check
 from problem_definition.evaluate  import evaluate
 from problem_definition.scenarios import TRAINING_BATTERY
-from heuristics.discovered        import RUNS_CSV, save_iteration
+from heuristics.discovered        import RUNS_CSV, find_champion, save_iteration
 from util.infra                   import ScheduleEntry
 from discovery.placer             import PriorityFn, construct, init_state
 from discovery.prompts            import (
-    SYSTEM, breakout_prompt, describe_prompt, extract_code, initial_prompt,
-    parse_description, refine_prompt,
+    SYSTEM, breakout_prompt, carryover_prompt, describe_prompt, extract_code,
+    initial_prompt, parse_description, refine_prompt,
 )
 from discovery.runtime            import compile_priority, time_limit
 
@@ -127,8 +127,16 @@ def discover(model: str = MODEL, base_url: str | None = None,
     where  = base_url if base_url else "Hugging Face"
     print(f"discovering with model={model} via {where} ({iterations} iterations)")
 
+    # connect to the past: seed run 1's first proposal with the best heuristic
+    # found across earlier runs (and link it as iteration 1's parent)
+    champion = find_champion()
+    if champion and champion["code"]:
+        print(f"carrying over champion {champion['key']} "
+              f"('{champion['title']}', lateness {champion['lateness']:.1f})")
+
     history = [{"role": "system", "content": SYSTEM}]
-    prompt  = initial_prompt(GANTT_SCENARIO)
+    prompt  = (carryover_prompt(GANTT_SCENARIO, champion)
+               if (champion and champion["code"]) else initial_prompt(GANTT_SCENARIO))
 
     best_value: float | None = None
     best_code:  str   | None = None
@@ -202,6 +210,8 @@ def discover(model: str = MODEL, base_url: str | None = None,
         parents = []
         if it > 1:
             parents.append(f"{run_id}|{it - 1}")          # the previous (plateaued) iteration
+        elif champion is not None:
+            parents.append(champion["key"])               # run 1 connects to the past champion
         # normal iterations also build on the best-so-far; a PIVOT deliberately
         # drops that anchor — it should bring a fresh idea, not lean on the old
         # champion — so it keeps only the most recent parent.

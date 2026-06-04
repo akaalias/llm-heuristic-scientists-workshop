@@ -42,6 +42,51 @@ def _next_index() -> int:
     return (highest or len(rows)) + 1
 
 
+def _code_from_py(text: str) -> str:
+    """Strip a saved module's leading docstring + injected import, leaving the
+    generated heuristic code."""
+    t = text.lstrip()
+    if t.startswith('"""'):
+        end = t.find('"""', 3)
+        if end != -1:
+            t = t[end + 3:]
+    lines = [ln for ln in t.splitlines()
+             if not ln.strip().startswith("from problem_definition.model import")]
+    return "\n".join(lines).strip("\n")
+
+
+def find_champion() -> dict | None:
+    """The best heuristic recorded so far across ALL runs (lowest total_lateness
+    among successes), with its code read back from its .py. None if there's no
+    prior success. Used to seed a new run — connecting it to the past."""
+    if not RUNS_CSV.exists():
+        return None
+    with RUNS_CSV.open(newline="") as f:
+        rows = list(csv.DictReader(f))
+    best, best_lat = None, None
+    for r in rows:
+        if r.get("status") != "success":
+            continue
+        try:
+            lat = float(r.get("total_lateness", ""))
+        except (ValueError, TypeError):
+            continue
+        if best is None or lat < best_lat:
+            best, best_lat = r, lat
+    if best is None:
+        return None
+    code = ""
+    fname = best.get("file") or ""
+    if fname and (HERE / fname).exists():
+        code = _code_from_py((HERE / fname).read_text())
+    return {
+        "key":      f'{best.get("run_id", "")}|{best.get("iter", "")}',
+        "code":     code,
+        "lateness": best_lat,
+        "title":    best.get("title", "") or "Untitled heuristic",
+    }
+
+
 def save_iteration(
     run_id:         str,
     scenario:       str,

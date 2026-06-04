@@ -80,6 +80,21 @@ def initial_prompt(scenario: Scenario) -> str:
     )
 
 
+def carryover_prompt(scenario: Scenario, champion: dict) -> str:
+    """A fresh run's FIRST prompt, seeded with the best heuristic found so far
+    (the champion of earlier runs) — connect to the past, then either build on
+    it or strike out in a new direction."""
+    return (
+        problem_brief(scenario)
+        + f'\n\nThe best heuristic discovered so far (across earlier runs) is '
+          f'"{champion["title"]}", with average total_lateness = {champion["lateness"]:.1f}:\n\n'
+        + "```python\n" + champion["code"] + "\n```\n\n"
+        + "Start from here: propose a `priority(step, state)` function that builds "
+          "on this idea and tries to beat it — or, if you spot a better angle, take "
+          "a different direction. Keep it interpretable."
+    )
+
+
 def refine_prompt(
     scenario: Scenario,
     prev_value: Optional[float],
