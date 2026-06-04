@@ -195,8 +195,11 @@ def discover(model: str = MODEL, base_url: str | None = None,
 
         parents = []
         if it > 1:
-            parents.append(f"{run_id}|{it - 1}")          # the previous iteration
-        if parent_best_iter is not None:
+            parents.append(f"{run_id}|{it - 1}")          # the previous (plateaued) iteration
+        # normal iterations also build on the best-so-far; a PIVOT deliberately
+        # drops that anchor — it should bring a fresh idea, not lean on the old
+        # champion — so it keeps only the most recent parent.
+        if parent_best_iter is not None and not pivot:
             bkey = f"{run_id}|{parent_best_iter}"          # the best-so-far it built on
             if bkey not in parents:
                 parents.append(bkey)
