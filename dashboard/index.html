@@ -180,12 +180,14 @@ svg.gantt .ga{stroke:var(--ink);stroke-width:1;}
 svg.gantt .gy{font-feature-settings:"smcp" 1;text-transform:uppercase;letter-spacing:.03em;}
 svg.gantt .gx{fill:var(--faint);}
 svg.gantt .gd{fill:#33312b;font:10px/1 var(--mono);pointer-events:none;}  /* dish # — ink on pale fill */
-svg.gantt rect[data-tip]{cursor:default;}
+svg.gantt rect[data-tip]:hover{filter:brightness(0.9);}                   /* slightly darker on hover */
 
-/* cursor-following popover for schedule bars (dark ink chip, cream text) */
+/* popover for schedule bars: a dark ink chip, cream text, anchored centred
+   just above the hovered bar (positioned by JS from the bar's box) */
 #gtip{position:fixed;z-index:30;pointer-events:none;opacity:0;transition:opacity .08s;
+      transform:translate(-50%,-100%);white-space:nowrap;text-align:center;
       background:var(--ink);color:var(--paper);font:12px/1.35 var(--serif);
-      padding:5px 9px;border-radius:2px;max-width:320px;}
+      padding:5px 9px;border-radius:2px;}
 </style>
 </head>
 <body>
@@ -363,19 +365,20 @@ function renderChart(points, target, animate){
     chart.addEventListener("click",     e => { const m = e.target.closest("[data-key]"); if (m) select(m.dataset.key); });
   }
 
-  // cursor-following popover over schedule (Gantt) bars
+  // popover over schedule (Gantt) bars — anchored centred above the hovered bar
   const gtip = document.getElementById("gtip");
   if (gtip){
-    document.addEventListener("mousemove", e => {
+    document.addEventListener("mouseover", e => {
       const bar = e.target.closest && e.target.closest("svg.gantt rect[data-tip]");
-      if (bar){
-        gtip.textContent = bar.getAttribute("data-tip");
-        gtip.style.left = (e.clientX + 12) + "px";
-        gtip.style.top  = (e.clientY + 14) + "px";
-        gtip.style.opacity = "1";
-      } else if (gtip.style.opacity !== "0"){
-        gtip.style.opacity = "0";
-      }
+      if (!bar) return;
+      const r = bar.getBoundingClientRect();
+      gtip.textContent = bar.getAttribute("data-tip");
+      gtip.style.left = (r.left + r.width / 2) + "px";
+      gtip.style.top  = (r.top - 8) + "px";        // sits just above the bar
+      gtip.style.opacity = "1";
+    });
+    document.addEventListener("mouseout", e => {
+      if (e.target.closest && e.target.closest("svg.gantt rect[data-tip]")) gtip.style.opacity = "0";
     });
   }
 
