@@ -7,7 +7,8 @@ plus a row in runs.csv).
 Usage
 -----
     export HF_TOKEN=hf_xxx                       # or set it in .env
-    python -m discovery.discover                 # 5 iterations on TRAINING (HF default)
+    python -m discovery.discover                 # default iterations on TRAINING (HF)
+    python -m discovery.discover --iterations 30 --patience 6
 
     # against a local LM Studio / OpenAI-compatible server:
     python -m discovery.discover \
@@ -30,8 +31,8 @@ from heuristics.discovered        import RUNS_CSV, find_champion, prior_attempts
 from util.infra                   import ScheduleEntry
 from discovery.placer             import PriorityFn, construct, init_state
 from discovery.prompts            import (
-    SYSTEM, breakout_prompt, carryover_prompt, describe_prompt, extract_code,
-    hard_breakout_prompt, initial_prompt, parse_description, refine_prompt,
+    SYSTEM, breakout_prompt, describe_prompt, extract_code, hard_breakout_prompt,
+    initial_prompt, parse_description, refine_prompt, reproduce_prompt,
 )
 from discovery.runtime            import compile_priority, time_limit
 
@@ -123,29 +124,43 @@ def evaluate_battery(priority_fn: PriorityFn) -> tuple[float, list[dict]]:
 
 
 def discover(model: str = MODEL, base_url: str | None = None,
-             iterations: int = ITERATIONS) -> None:
+             iterations: int = ITERATIONS, patience: int = PLATEAU_PATIENCE,
+             meta_pivots: int = META_PLATEAU_PIVOTS) -> None:
     client = build_client(model, base_url)
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     where  = base_url if base_url else "Hugging Face"
-    print(f"discovering with model={model} via {where} ({iterations} iterations)")
-
-    # connect to the past: seed run 1's first proposal with the best heuristic
-    # found across earlier runs (and link it as iteration 1's parent)
-    champion = find_champion()
-    if champion and champion["code"]:
-        tried = prior_attempts(exclude_key=champion["key"])  # everything else we've tested
-        print(f"carrying over champion {champion['key']} "
-              f"('{champion['title']}', lateness {champion['lateness']:.1f}); "
-              f"{len(tried)} prior approach(es) catalogued as 'already tried'")
-
-    history = [{"role": "system", "content": SYSTEM}]
-    prompt  = (carryover_prompt(GANTT_SCENARIO, champion, tried)
-               if (champion and champion["code"]) else initial_prompt(GANTT_SCENARIO))
+    print(f"discovering with model={model} via {where} ({iterations} iterations, "
+          f"patience={patience}, meta-pivots={meta_pivots})")
 
     best_value:   float | None = None
     best_code:    str   | None = None
-    best_iter:    int   | None = None
+    best_iter:    int   | None = None        # which iteration holds the best (None = carried-over champion)
     best_samples: list[dict] | None = None   # per-scenario schedules of the current best
+
+    # connect to the past: carry over the best heuristic found across earlier
+    # runs. ELITISM — re-evaluate it on the CURRENT battery and adopt it as the
+    # run's standing best, so the run can never end worse than what we already
+    # had, and the plateau detector measures against the true bar to beat.
+    champion = find_champion()
+    tried: list[dict] = []
+    if champion and champion["code"]:
+        tried = prior_attempts(exclude_key=champion["key"])  # everything else we've tested
+        try:
+            with time_limit(EVAL_TIMEOUT_S):
+                champ_value, champ_samples = evaluate_battery(compile_priority(champion["code"]))
+            best_value, best_code, best_samples = champ_value, champion["code"], champ_samples
+            print(f"carrying over champion {champion['key']} ('{champion['title']}'), "
+                  f"re-scored {champ_value:.1f} on the current battery — retained as the bar to beat; "
+                  f"{len(tried)} prior approach(es) catalogued for pivots")
+        except Exception as exc:
+            print(f"champion {champion['key']} no longer evaluates on this battery "
+                  f"({type(exc).__name__}) — starting cold")
+            champion = None
+
+    history = [{"role": "system", "content": SYSTEM}]
+    prompt  = (reproduce_prompt(GANTT_SCENARIO, champion)
+               if (champion and champion["code"]) else initial_prompt(GANTT_SCENARIO))
+
     prev_value, prev_error = None, None
     since_improve = 0          # iterations since the best last moved (plateau detector)
     pivots_since_best = 0      # consecutive pivots since the best last moved (meta-plateau)
@@ -162,11 +177,11 @@ def discover(model: str = MODEL, base_url: str | None = None,
 
         pivot = False
         if it > 1:
-            if since_improve >= PLATEAU_PATIENCE:
+            if since_improve >= patience:
                 # stuck in a dead end — keep the plateaued attempt as a parent
                 # (history is retained) but ask for a fundamentally new approach
                 pivot = True             # this experiment is a deliberate change of direction
-                if pivots_since_best >= META_PLATEAU_PIVOTS and best_samples:
+                if pivots_since_best >= meta_pivots and best_samples:
                     # META-plateau: we've already pivoted repeatedly and the global
                     # best never moved — different signals keep collapsing to the same
                     # schedule. Stop inventing signals; aim at the bottleneck scenario.
@@ -178,7 +193,7 @@ def discover(model: str = MODEL, base_url: str | None = None,
                     prompt = hard_breakout_prompt(bscen, best_value, per)
                 else:
                     print(f"--- plateau: {since_improve} iterations without improvement → new approach ---")
-                    prompt = breakout_prompt(GANTT_SCENARIO, best_value, since_improve)
+                    prompt = breakout_prompt(GANTT_SCENARIO, best_value, since_improve, tried)
                 pivots_since_best += 1  # count this pivot toward the meta-plateau detector
                 since_improve = 0      # give the new direction a fresh patience window
                 branch_best_iter, branch_best_value = None, None  # fresh lineage — drop the old branch
@@ -262,6 +277,10 @@ def discover(model: str = MODEL, base_url: str | None = None,
     print("\n=== best heuristic ===")
     if best_code is None:
         print(f"no successful heuristic discovered (run_id={run_id})")
+    elif best_iter is None:
+        print(f"the carried-over champion ({champion['key']}, total_lateness = "
+              f"{best_value:.1f}) was not beaten this run")
+        print(best_code)
     else:
         print(f"from iteration {best_iter}, total_lateness = {best_value:.1f}")
         print(best_code)
@@ -288,8 +307,20 @@ def main() -> None:
         "--iterations", type=int, default=ITERATIONS,
         help=f"number of refinement iterations to run (default: {ITERATIONS})",
     )
+    parser.add_argument(
+        "--patience", type=int, default=PLATEAU_PATIENCE,
+        help=f"iterations with no improvement before pivoting to a new approach "
+             f"(default: {PLATEAU_PATIENCE})",
+    )
+    parser.add_argument(
+        "--meta-pivots", type=int, default=META_PLATEAU_PIVOTS,
+        help=f"consecutive pivots with no global improvement before the hard "
+             f"breakout that targets the bottleneck scenario (default: {META_PLATEAU_PIVOTS})",
+    )
     args = parser.parse_args()
-    discover(model=args.model, base_url=normalize_api(args.api), iterations=args.iterations)
+    discover(model=args.model, base_url=normalize_api(args.api),
+             iterations=args.iterations, patience=args.patience,
+             meta_pivots=args.meta_pivots)
 
 
 if __name__ == "__main__":

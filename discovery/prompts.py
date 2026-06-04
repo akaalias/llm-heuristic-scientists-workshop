@@ -97,31 +97,22 @@ def _tried_block(attempts: list[dict], limit: int = 24) -> str:
     return "\n".join(lines)
 
 
-def carryover_prompt(scenario: Scenario, champion: dict,
-                     tried: list[dict] | None = None) -> str:
+def reproduce_prompt(scenario: Scenario, champion: dict) -> str:
     """A fresh run's FIRST prompt. Hands over the best heuristic found so far
-    (the champion of earlier runs) AND the catalogue of everything already
-    tried, then asks — not either/or — to BOTH keep what works AND bring a
-    genuinely new idea we have not tested yet."""
-    tried_block = _tried_block(tried or [])
-    history = (
-        f"\n\nHere is what has already been tried across earlier runs — do NOT "
-        f"simply repeat any of these:\n{tried_block}\n"
-        if tried_block else ""
-    )
+    (the champion of earlier runs) and asks to REPRODUCE it — locking the known
+    floor back in before we try to improve on it. Deliberately NOT a request for
+    a new idea: that comes on later refinements and at pivots, so a run can never
+    start worse than the heuristic we already had."""
     return (
         problem_brief(scenario)
         + f'\n\nThe best heuristic discovered so far (across earlier runs) is '
-          f'"{champion["title"]}", with average total_lateness = {champion["lateness"]:.1f}:\n\n'
-        + "```python\n" + champion["code"] + "\n```"
-        + history
-        + "\n\nPropose ONE `priority(step, state)` function that does BOTH: keep "
-          "the parts of the champion above that clearly work, AND introduce at "
-          "least one genuinely new idea that is NOT in the list of things already "
-          "tried — a different signal, lookahead, or combination we have not "
-          "tested. This is not a choice between building on the past and trying "
-          "something new: do both in the same function. Be bold but keep it "
-          "interpretable."
+          f'"{champion["title"]}", with average total_lateness = {champion["lateness"]:.1f}. '
+          f"It is our current champion and the bar to beat:\n\n"
+        + "```python\n" + champion["code"] + "\n```\n\n"
+        + "For THIS first step, reproduce it as your `priority(step, state)` "
+          "function — keep its core idea intact. You may fix only clear bugs or "
+          "obvious inefficiencies; do NOT redesign it or swap its dominant signal. "
+          "We will try to improve on it in the next steps."
     )
 
 
@@ -150,18 +141,27 @@ def refine_prompt(
     )
 
 
-def breakout_prompt(scenario: Scenario, best_so_far: Optional[float], plateau_n: int) -> str:
+def breakout_prompt(scenario: Scenario, best_so_far: Optional[float], plateau_n: int,
+                    tried: list[dict] | None = None) -> str:
     """Issued after a plateau: stop tweaking and try a fundamentally different
-    strategy. The conversation history still holds everything that's been
-    tried, so the model knows what NOT to repeat."""
+    strategy. The conversation history holds the recent attempts; we also list
+    the distinct approaches tried across ALL runs (deduped) so the new direction
+    avoids retreading them."""
     beat = (f"None of them beat total_lateness = {best_so_far:.1f}."
             if best_so_far is not None else
             "None of them produced a valid schedule.")
+    tried_block = _tried_block(tried or [])
+    catalogue = (
+        f"\n\nApproaches already tried across all runs — do NOT repeat any of "
+        f"these:\n{tried_block}\n"
+        if tried_block else ""
+    )
     return (
         problem_brief(scenario)
         + f"\n\nThe last {plateau_n} attempts have plateaued. {beat} "
-          "Incremental tweaks have stopped helping.\n\n"
-          "Step BACK and propose a FUNDAMENTALLY DIFFERENT `priority(step, state)` "
+          "Incremental tweaks have stopped helping."
+        + catalogue
+        + "\nStep BACK and propose a FUNDAMENTALLY DIFFERENT `priority(step, state)` "
           "strategy — not a variation of the recent attempts. Change the core idea: "
           "switch the dominant signal (deadline urgency ↔ slack per remaining work ↔ "
           "station congestion / bottleneck ↔ shortest- or longest-processing-time ↔ "
