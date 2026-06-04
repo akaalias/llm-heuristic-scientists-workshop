@@ -163,6 +163,22 @@ LM Studio:
 Without `--api`, discovery uses Hugging Face Inference with `MODEL` and
 `HF_TOKEN` exactly as before.
 
+### Watch progress in the dashboard
+
+A tiny, dependency-free web dashboard renders the run log as a table — handy
+when you're firing off lots of cheap local iterations and want to watch them
+land:
+
+```bash
+.venv/bin/python -m dashboard.server        # http://localhost:8000
+```
+
+It reads `heuristics/discovered/runs.csv` fresh on every request, so just
+refresh the browser as the discovery loop runs — no restart needed. One row
+per iteration (run, scenario, model, lateness, status, time); the running-best
+rows (lowest lateness so far) are marked with an ink left-rule. No charts yet,
+just the table. Options: `--port`, `--host`, `--csv path/to/runs.csv`.
+
 ## 3. Evaluate any heuristics on every scenario
 
 ```bash
@@ -206,6 +222,9 @@ discovery/
     prompts.py           # system prompt + refinement prompt
     placer.py            # greedy list-placer driven by a priority fn
     runtime.py           # time_limit + compile_priority (exec'd LLM code)
+dashboard/
+    server.py            # tiny stdlib web server for the run log
+    index.html           # Tufte-styled table template (no JS)
 problem_definition/
     model.py             # Order, Dish, Step, State, earliest_start
     evaluate.py          # total_lateness scoring

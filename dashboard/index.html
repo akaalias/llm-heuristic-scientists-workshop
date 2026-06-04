@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1100">
+<title>Heuristic Discovery — Run Log</title>
+<style>
+/* ============================================================================
+   Tufte-style run log. Cream paper, near-black ink, one rust accent, Palatino
+   serif, old-style figures, thin rules instead of boxes — small-caps tags and
+   ink left-rules instead of coloured pills. Adapted from the FMDiscovery
+   dashboard's shared visual system.
+   ========================================================================== */
+:root{
+  --paper:#fffff8;        /* Tufte cream            */
+  --ink:#111111;          /* near-black body text   */
+  --muted:#6b6a60;        /* warm gray — secondary  */
+  --faint:#9b998c;        /* fainter — captions     */
+  --rule:#d9d5c3;         /* warm hairline          */
+  --rule-soft:#ece9da;    /* fainter hairline       */
+  --accent:#8c2f1f;       /* ET rust-red, sparingly */
+  --ochre:#8a6a1e;        /* secondary data tint    */
+  --serif:"Palatino","Palatino Linotype","Book Antiqua","URW Palladio L",Georgia,serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;}
+html{background:var(--paper);}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font:18px/1.6 var(--serif);
+  font-feature-settings:"onum" 1,"liga" 1;   /* old-style figures, ligatures */
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---- header ------------------------------------------------------------- */
+.dash-head{max-width:90vw;margin:0 auto;padding:48px 0 6px;}
+.eyebrow{font:italic 16px/1 var(--serif);color:var(--accent);letter-spacing:.01em;margin-bottom:13px;}
+.dash-head h1{font-weight:400;font-size:34px;line-height:1.12;letter-spacing:-.01em;margin:0 0 8px;}
+.dash-head .sub{color:var(--muted);font-style:italic;font-size:18px;margin:0 0 14px;}
+.dash-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:14px 26px;font-size:14px;color:var(--muted);}
+.dash-meta .k{display:inline-flex;align-items:center;gap:7px;}
+.dash-meta .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.dash-meta .dot.ok{background:var(--ink);}
+.dash-meta .dot.bad{background:var(--accent);}
+#updated{color:var(--faint);font-style:italic;margin-left:auto;}
+
+/* ---- the run table — Tufte data table ----------------------------------- */
+.dash-wrap{max-width:90vw;margin:0 auto;padding:4px 0 64px;}
+.tbl-card{border-top:1.5px solid var(--ink);margin-top:26px;}
+table{width:100%;border-collapse:collapse;font-size:14.5px;}
+th,td{text-align:left;padding:9px 14px 9px 0;vertical-align:top;}
+thead th:first-child,tbody td:first-child{text-align:right;padding-right:18px;white-space:nowrap;}
+th{font:600 12px/1.2 var(--serif);font-feature-settings:"smcp" 1;
+   text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+   border-bottom:1.5px solid var(--ink);white-space:nowrap;}
+td{border-bottom:1px solid var(--rule-soft);}
+tbody tr:hover{background:#f7f3e3;}
+
+/* numbers: lining tabular figures so columns align */
+.num{font-variant-numeric:lining-nums tabular-nums;white-space:nowrap;}
+.best{font-weight:700;}                       /* lowest-lateness row so far   */
+.best-row{box-shadow:inset 2px 0 0 var(--ink);}   /* ink left-rule = running best */
+.mono{font:12.5px/1.4 var(--mono);color:var(--muted);}
+.faint{color:var(--faint);}
+
+/* small-caps status tags — one restrained tint each, no coloured pills */
+.status{font:600 11.5px/1 var(--serif);font-feature-settings:"smcp" 1;
+        text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;}
+.st-ok{color:var(--ink);}
+.st-bad{color:var(--accent);}
+
+.empty{padding:28px 0;color:var(--muted);font-style:italic;}
+</style>
+</head>
+<body>
+<header class="dash-head">
+  <div class="eyebrow">LLM Heuristic Scientists · run log</div>
+  <h1>Heuristic discovery progress</h1>
+  <p class="sub"><!--SUB--></p>
+  <div class="dash-meta">
+    <span class="k"><span class="dot ok"></span>Success</span>
+    <span class="k"><span class="dot bad"></span>Failed</span>
+    <span class="k">Ink left-rule = running best (lowest lateness)</span>
+    <span id="updated"><!--UPDATED--></span>
+  </div>
+</header>
+<div class="dash-wrap">
+  <div class="tbl-card">
+    <!--TABLE-->
+  </div>
+</div>
+</body>
+</html>
