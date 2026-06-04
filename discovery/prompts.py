@@ -113,11 +113,13 @@ def describe_prompt(code: str) -> str:
         Reply in EXACTLY this format and nothing else:
 
         TITLE: <a short, distinctive name for the rule, 2-6 words>
-        RULE: <ONE short, memorable instruction the kitchen team can follow to
-               decide which step to cook next — imperative and concrete, in
-               plain kitchen terms (orders, due times, remaining work, busy
-               stations), no code. e.g. "Start the order with the least slack
-               per minute of work still left.">
+        RULE: <the rule as ONE short sentence — about 6 to 14 words — that a
+               line cook could memorise. Plain kitchen language only (orders,
+               dishes, due times, how busy a station is). NO code, NO variable
+               or function names, NO markdown, NO jargon like "step" or
+               "state". e.g. "Cook the order with the least spare time first.">
+
+        Do not write anything after the RULE line. Do not include any code.
 
         ```python
         {code}
@@ -128,15 +130,27 @@ def describe_prompt(code: str) -> str:
 _TITLE_RE = re.compile(r"TITLE:\s*(.*?)\s*(?:RULE:|SUMMARY:|$)", re.DOTALL | re.IGNORECASE)
 _RULE_RE  = re.compile(r"(?:RULE|SUMMARY):\s*(.*)", re.DOTALL | re.IGNORECASE)
 
+
+def _one_liner(text: str, limit: int = 130) -> str:
+    """Force a model fragment down to a single short, code-free line: drop any
+    fenced code, keep the first non-empty line, strip quotes/backticks, and cap
+    the length. Guards against the model dumping a paragraph or code block."""
+    text = text.split("```")[0]                                  # drop any code block
+    line = next((ln for ln in text.splitlines() if ln.strip()), "")
+    s = " ".join(line.split()).strip().strip('`"').strip()
+    if len(s) > limit:
+        s = s[:limit].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+    return s
+
+
 def parse_description(reply: str) -> tuple[str, str]:
-    """Split a describe reply into (title, rule), each flattened to a single
-    line. Degrades gracefully if the model ignores the format."""
-    def grab(rx):
-        m = rx.search(reply)
-        return " ".join(m.group(1).split()) if m else ""
-    title, rule = grab(_TITLE_RE), grab(_RULE_RE)
-    if not (title or rule):
-        rule = " ".join(reply.split())[:200]
-    rule = rule or title
-    title = title or (rule.split(". ")[0][:60] if rule else "Untitled heuristic")
+    """Split a describe reply into (title, rule). The rule is hard-clamped to a
+    single short, code-free line so it stays a kitchen-readable instruction.
+    Degrades gracefully if the model ignores the format."""
+    t = _TITLE_RE.search(reply)
+    r = _RULE_RE.search(reply)
+    title = _one_liner(t.group(1), limit=60) if t else ""
+    rule  = _one_liner(r.group(1)) if r else _one_liner(reply)
+    rule  = rule or title
+    title = title or (rule[:60] if rule else "Untitled heuristic")
     return title, rule
