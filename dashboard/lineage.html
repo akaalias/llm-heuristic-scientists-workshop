@@ -46,17 +46,17 @@ body{margin:0;background:var(--paper);color:var(--ink);
 /* lineage svg — natural px width so it can exceed the viewport and scroll */
 #lin{display:block;}
 #lin text{font:12px/1 var(--serif);fill:var(--muted);}
-#lin .edge{fill:none;stroke:var(--rule);stroke-width:1;}
+#lin .edge{fill:none;stroke:#b2ac99;stroke-width:1;}   /* visible by default */
 #lin .nd{cursor:pointer;}
 #lin .nk{fill:var(--ink);}
 #lin .ndd{fill:var(--disc);}
 #lin .nf{fill:var(--accent);}
 #lin .nlab{fill:var(--faint);font:10px/1 var(--serif);font-variant-numeric:lining-nums;}
 #lin .hit{cursor:pointer;}
-/* dim everything, then re-light the hovered bloodline (order: lit wins) */
-#lin.dim .nd,#lin.dim .edge,#lin.dim .nlab{opacity:.14;}
+/* on hover: fade everything a little, then re-light the traced ancestry path */
+#lin.dim .nd,#lin.dim .edge,#lin.dim .nlab{opacity:.22;}
 #lin.dim .nd.lit,#lin.dim .nlab.lit{opacity:1;}
-#lin.dim .edge.lit{opacity:1;stroke:var(--ink);stroke-width:1.4;}
+#lin.dim .edge.lit{opacity:1;stroke:var(--ink);stroke-width:1.5;}
 
 .empty{padding:28px 0;color:var(--muted);font-style:italic;}
 
@@ -158,13 +158,26 @@ body{margin:0;background:var(--paper);color:var(--ink);
   // interaction: hover a node → light its whole bloodline; click → dashboard
   const svg = document.getElementById("lin");
   const q = (k) => CSS.escape(k);
+  // the lineage we trace on hover: each experiment's direct predecessor (its
+  // first parent), so a hover lights ONE clean path back to the root — not the
+  // whole connected cluster.
+  const lineageParent = {};
+  nodes.forEach(nd => { const ps = parentsOf[nd.key]; lineageParent[nd.key] = ps.length ? ps[0] : null; });
+
   function lit(key){
-    const set = new Set([key]); walk(key, parentsOf, set);   // ancestors only, back to the root
+    const nodeSet = new Set([key]); const edgeSet = new Set();
+    let cur = key, guard = 0;
+    while (lineageParent[cur] && guard++ < 5000){
+      const p = lineageParent[cur];
+      edgeSet.add(cur + "|" + p);
+      if (nodeSet.has(p)) break;
+      nodeSet.add(p); cur = p;
+    }
     svg.classList.add("dim");
     svg.querySelectorAll(".lit").forEach(el => el.classList.remove("lit"));
-    set.forEach(k => svg.querySelectorAll(`[data-key="${q(k)}"]`).forEach(el => el.classList.add("lit")));
+    nodeSet.forEach(k => svg.querySelectorAll(`[data-key="${q(k)}"]`).forEach(el => el.classList.add("lit")));
     svg.querySelectorAll(".edge").forEach(e => {
-      if (set.has(e.getAttribute("data-c")) && set.has(e.getAttribute("data-p"))) e.classList.add("lit");
+      if (edgeSet.has(e.getAttribute("data-c") + "|" + e.getAttribute("data-p"))) e.classList.add("lit");
     });
   }
   function unlit(){ svg.classList.remove("dim"); svg.querySelectorAll(".lit").forEach(el => el.classList.remove("lit")); }
