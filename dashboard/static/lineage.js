@@ -105,10 +105,10 @@
     return detailCache[key] || {};
   }
   function placePopover(anchorEl){
-    const r = anchorEl.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    const r = anchorEl.getBoundingClientRect(), w = tip.offsetWidth;
     const left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 12));
-    let top = r.bottom + 12;
-    if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 12);   // flip above if it'd overflow
+    // always anchor below the node — never flip above, so the popover can't cover the graph
+    const top = r.bottom + 12;
     tip.style.left = left + "px"; tip.style.top = top + "px";
   }
   async function showPopover(anchorEl, nd){
@@ -116,7 +116,7 @@
     if (hoveringKey !== nd.key) return;                       // moved away before it loaded
     const lat = nd.lateness != null ? `lateness ${fmt(nd.lateness)}` : "failed";
     const parents = (d.parents || []).map(p =>
-      `<span class="pop-parent">↳ ${esc(p.symbol)} <span class="pn">#${esc(p.n)}</span></span>`).join("");
+      `<span class="pop-parent">↳ <span class="ps" title="${esc(p.symbol)}">${esc(p.symbol)}</span> <span class="pn">#${esc(p.n)}</span></span>`).join("");
     tip.innerHTML =
       `<div class="pop-title">${esc(nd.title)}</div>`
       + `<div class="pop-meta">#${esc(nd.n)} · ${esc(nd.symbol || "")} · ${lat}</div>`

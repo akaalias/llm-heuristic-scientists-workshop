@@ -57,6 +57,8 @@
             letter-spacing:.05em;color:var(--faint);margin-bottom:4px;}
 #tip .pop-body p{margin:0;font:italic 13px/1.5 var(--serif);color:#33312b;}
 #tip .pop-parents{display:flex;flex-direction:column;gap:3px;}
-#tip .pop-parent{font:600 11px/1.35 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+#tip .pop-parent{display:flex;align-items:baseline;gap:5px;max-width:100%;
+                 font:600 11px/1.35 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
                  letter-spacing:.03em;color:var(--accent);}
-#tip .pop-parent .pn{color:var(--muted);font-weight:400;}
+#tip .pop-parent .ps{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#tip .pop-parent .pn{flex:0 0 auto;color:var(--muted);font-weight:400;}
