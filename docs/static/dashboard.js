@@ -9,28 +9,10 @@
 // the row-expand works on GitHub Pages, where there is no live endpoint.
 const DETAILS_URL = "details.json";
 
-// ---- chart geometry & helpers ---------------------------------------------
+// ---- chart geometry -------------------------------------------------------
+// niceTicks / fmt / esc / xMark live in utils.js (loaded first).
 const VB = {W:1000, H:288, L:68, R:20, T:14, B:30};
 const chartSeen = new Set();   // keys already drawn — so only new dots animate in
-
-function niceNum(range, round){
-  const exp = Math.floor(Math.log10(range || 1));
-  const f = (range || 1) / Math.pow(10, exp);
-  const nf = round ? (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10)
-                   : (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10);
-  return nf * Math.pow(10, exp);
-}
-function niceTicks(min, max, count){
-  if (max <= min) max = min + 1;
-  const step = niceNum((max - min) / Math.max(1, count - 1), true);
-  const out = [];
-  for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step)
-    out.push(Math.round(v * 1000) / 1000);
-  return out;
-}
-const fmt = (t) => Number.isInteger(t) ? String(t) : t.toFixed(1);
-const esc = (s) => String(s).replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-function xMark(x, y, r){ return `M${x-r},${y-r}L${x+r},${y+r}M${x+r},${y-r}L${x-r},${y+r}`; }
 
 function renderChart(points, target, animate){
   const svg = document.getElementById("chart");

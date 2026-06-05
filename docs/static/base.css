@@ -15,7 +15,11 @@
   --rule-soft:#ece9da;    /* fainter hairline       */
   --accent:#8c2f1f;       /* ET rust-red, sparingly */
   --ochre:#8a6a1e;        /* secondary data tint    */
+  --teal:#3f6e6e;         /* tertiary tint — expert/live/numbers */
+  --success:#4a7a3a;      /* met / on-time green    */
   --disc:#b9b6a6;         /* discarded marks        */
+  --ink-soft:#33312b;     /* softer ink on pale fills */
+  --bg-pale:#fcfbf2;      /* pale inset background   */
   --serif:"Palatino","Palatino Linotype","Book Antiqua","URW Palladio L",Georgia,serif;
   --mono:ui-monospace,"SF Mono",Menlo,monospace;
 }

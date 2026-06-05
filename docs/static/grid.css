@@ -55,8 +55,8 @@
 .ov-note{margin:30px 60px 48px;max-width:62ch;color:var(--muted);
          font:italic 15px/1.6 var(--serif);}
 .ov-note strong{font-style:normal;font-weight:600;color:var(--ink);}
-.ov-met{color:#4a7a3a;font-style:normal;}
-.ov-miss{color:#8c2f1f;font-style:normal;}
+.ov-met{color:var(--success);font-style:normal;}
+.ov-miss{color:var(--accent);font-style:normal;}
 .ov-layer,.ov-due-layer,.ov-axis{grid-area:1/1;}
 .ov-layer{opacity:var(--ov-op,1);}
 .ov-layer svg{width:100%;height:auto;display:block;}
@@ -80,7 +80,7 @@
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
       gap:24px 28px;margin-top:20px;}
 .cell{display:block;text-decoration:none;color:inherit;}
-.cell-thumb{background:#fcfbf2;border-left:2px solid var(--rule);padding:6px 8px;}
+.cell-thumb{background:var(--bg-pale);border-left:2px solid var(--rule);padding:6px 8px;}
 svg.thumb{width:100%;height:auto;display:block;}
 .cell:hover .cell-thumb{background:#f7f3e3;}
 .cell-cap{display:flex;align-items:baseline;gap:9px;margin-top:9px;}
