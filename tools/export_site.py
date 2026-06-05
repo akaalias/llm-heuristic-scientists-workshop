@@ -79,6 +79,17 @@ def main() -> None:
         if p.exists():
             p.write_text(rewrite_js(p.read_text()))
 
+    # keep Pages lean: drop full-res originals that have a web/ variant — the
+    # pages reference the small web variant, so docs only needs to ship that one.
+    for category in ("portraits", "scenes", "marks"):
+        webdir = out / "static" / category / "web"
+        if not webdir.is_dir():
+            continue
+        web_stems = {p.stem for p in webdir.iterdir() if p.is_file()}
+        for orig in (out / "static" / category).glob("*.png"):
+            if orig.stem in web_stems:
+                orig.unlink()
+
     # 2) render each page with the current data, then relativise its URLs
     for name, tmpl, render, needs_target in PAGES:
         html = (render(tmpl.read_text(), args.csv, args.target) if needs_target

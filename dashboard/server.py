@@ -647,6 +647,16 @@ SCENE_DIR    = STATIC_DIR / "scenes"      # PNGs from tools.generate_scenes
 MARK_DIR     = STATIC_DIR / "marks"       # PNGs from tools.generate_mark
 
 
+def _asset_url(category: str, stem: str) -> str:
+    """URL for an image, preferring the small web/<stem>.webp variant (from
+    tools.optimize_images) over the full-res original. '' if neither exists."""
+    base = STATIC_DIR / category
+    for rel in (f"web/{stem}.webp", f"web/{stem}.png", f"{stem}.png"):
+        if (base / rel).is_file():
+            return f"/static/{category}/{rel}"
+    return ""
+
+
 def _framed(inner: str, variant: str, tag: str = "span", extra: str = "") -> str:
     """Wrap a picture (or initials monogram) in the shared framed-picture markup:
     a gilt frame + wide passe-partout mat with inset shadows, styled by `.framed`
@@ -657,21 +667,22 @@ def _framed(inner: str, variant: str, tag: str = "span", extra: str = "") -> str
 
 
 def scene_figure(name: str, alt: str, side: str) -> str:
-    """A framed scene <figure> (engraving) if static/scenes/<name>.png exists,
-    else '' so the section collapses to text only. `side` is 'left' or 'right'."""
-    if not (SCENE_DIR / f"{name}.png").is_file():
+    """A framed scene <figure> (engraving) if a scenes/<name> image exists, else
+    '' so the section collapses to text only. `side` is 'left' or 'right'."""
+    src = _asset_url("scenes", name)
+    if not src:
         return ""
-    img = (f'<img class="framed-img" src="/static/scenes/{name}.png" '
+    img = (f'<img class="framed-img" src="{src}" '
            f'alt="{html.escape(alt)}" loading="lazy">')
     return _framed(img, "scene", tag="figure", extra=f"scene-fig scene-fig--{side}")
 
 
 def mark_img(name: str, cls: str) -> str:
-    """A signature mark (e.g. the fox) from static/marks/<name>.png, or '' if absent.
-    Transparent PNG — shown as-is, not framed."""
-    if not (MARK_DIR / f"{name}.png").is_file():
+    """A signature mark (e.g. the fox) from marks/<name>, or '' if absent."""
+    src = _asset_url("marks", name)
+    if not src:
         return ""
-    return f'<img class="{cls}" src="/static/marks/{name}.png" alt="" aria-hidden="true">'
+    return f'<img class="{cls}" src="{src}" alt="" aria-hidden="true">'
 
 
 def _portrait_slug(name: str) -> str:
@@ -690,8 +701,9 @@ def avatar(name: str, variant: str) -> str:
     initials monogram so the layout is identical with or without generated art.
     `variant` is 'avatar' (team card) or 'chef' (featured)."""
     slug = _portrait_slug(name)
-    if slug and (PORTRAIT_DIR / f"{slug}.png").is_file():
-        inner = (f'<img class="framed-img" src="/static/portraits/{slug}.png" '
+    src = _asset_url("portraits", slug) if slug else ""
+    if src:
+        inner = (f'<img class="framed-img" src="{src}" '
                  f'alt="{html.escape(name)}" loading="lazy">')
     else:
         inner = (f'<span class="framed-img framed-img--mono" aria-hidden="true">'
