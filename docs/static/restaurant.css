@@ -81,6 +81,13 @@ body > .nav{max-width:66.67vw;margin:22px auto 0;padding:0;border-bottom:0;}
       letter-spacing:.04em;filter:none;}
 /* variants — outer size + mat/frame widths (passe-partout widened) */
 .framed--avatar{--mat:16px;--frame:3px;width:96px;height:96px;flex:0 0 auto;}
+/* the inset shadows are tuned for the big chef frame; at avatar size that depth
+   reads as muddy, so dial the frame-onto-mat and passe-partout shadows back. */
+.framed--avatar{box-shadow:0 0 0 1px #4a3a1e,
+                inset 0 0 0 1px #cdb98c,
+                inset 0 0 4px 0 rgba(60,42,16,.20),
+                0 3px 7px rgba(45,33,15,.20);}
+.framed--avatar::after{box-shadow:inset 0 0 4px 0 rgba(0,0,0,.22);}
 .framed--avatar .framed-img--mono{font-size:18px;}
 .framed--chef{--mat:30px;--frame:5px;width:212px;height:212px;flex:0 0 auto;}
 .framed--chef .framed-img--mono{font-size:38px;}
@@ -93,8 +100,13 @@ body > .nav{max-width:66.67vw;margin:22px auto 0;padding:0;border-bottom:0;}
 .framed--chef .framed-img{padding:13px;background:#ffffff;}
 
 /* ---- the chef (featured) ------------------------------------------------ */
-.chef{display:flex;gap:26px;align-items:flex-start;}
-.chef-text{flex:1 1 auto;}
+/* portrait + bio sit side-by-side when the column is wide enough; once it can't
+   give the bio a readable width beside the fixed 212px frame, the bio wraps to
+   its own full-width line below the portrait instead of being squeezed to one
+   word per line. flex-wrap reacts to the real column width, so this holds even
+   under the fixed width=1100 viewport where media queries never fire. */
+.chef{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start;}
+.chef-text{flex:1 1 320px;min-width:min(100%,260px);}
 .chef-name{font:400 24px/1.15 var(--serif);color:var(--ink);margin:0;}
 .chef-role{font:italic 15px/1.3 var(--serif);color:var(--accent);margin:5px 0 12px;}
 .chef-bio{font-size:18px;line-height:1.65;color:var(--ink);max-width:60ch;margin:0;}
