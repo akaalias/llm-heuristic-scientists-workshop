@@ -11,10 +11,10 @@ This sits ON TOP of the normal workflow: keep running `python -m dashboard.serve
 to build and design locally; run this when you want to publish a snapshot.
 
 What carries over to the static mirror: the run table, the chart (drawn from
-data baked into the page), the schedule grid, the lineage diagram, and the whole
-restaurant page. What does NOT (they need the live server): the SSE live updates
-and the row-expand experiment detail — those keep working locally, just not on
-the static copy.
+data baked into the page), the schedule grid, the lineage diagram, the whole
+restaurant page, and the row-expand experiment detail (baked into details.json,
+since Pages has no live `/detail` endpoint). What does NOT: the SSE live updates
+— those keep working locally, just not on the static copy.
 
 Usage:
     python -m tools.export_site
@@ -22,6 +22,7 @@ Usage:
 """
 
 import argparse
+import json
 import shutil
 from pathlib import Path
 
@@ -56,8 +57,11 @@ def rewrite_html(s: str) -> str:
 
 def rewrite_js(s: str) -> str:
     """Patch the JS deep-link into the dashboard (lineage.js builds
-    `"/dashboard#exp=" + key`) so it targets the static dashboard page."""
-    return s.replace('"/dashboard#exp="', '"dashboard.html#exp="')
+    `"/dashboard#exp=" + key`) so it targets the static dashboard page, and point
+    the row-expand at the baked details.json (there is no live server on Pages)."""
+    return (s
+            .replace('"/dashboard#exp="', '"dashboard.html#exp="')
+            .replace('const DETAILS_URL = null;', 'const DETAILS_URL = "details.json";'))
 
 
 def main() -> None:
@@ -100,7 +104,19 @@ def main() -> None:
         (out / name).write_text(rewrite_html(html))
         print(f"  ✓ {name}")
 
-    # 3) tell Pages to serve the files as-is (no Jekyll processing)
+    # 3) bake the row-expand experiment detail into a static JSON map, so the
+    #    dashboard's expand works on Pages without the live `/detail` endpoint
+    rows = server.load_rows(args.csv)
+    details = {}
+    for r in rows:
+        key = server._row_key(r)
+        d = server.experiment_detail(rows, key, args.csv.parent)
+        if d is not None:
+            details[key] = d
+    (out / "details.json").write_text(json.dumps(details))
+    print(f"  ✓ details.json ({len(details)} experiments)")
+
+    # 4) tell Pages to serve the files as-is (no Jekyll processing)
     (out / ".nojekyll").write_text("")
 
     print(f"\nStatic site → {out}")

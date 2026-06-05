@@ -33,15 +33,17 @@
 .prose a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;}
 .prose a:hover{border-bottom-color:var(--accent);}
 
-/* ---- the goal: one number ------------------------------------------------ */
-.goal{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 30px;}
-.goal-num{font:400 29px/1.1 var(--serif);color:var(--ink);white-space:nowrap;
-          font-variant-numeric:lining-nums;}
-.goal-arrow{color:var(--faint);margin:0 2px;}
-.goal-zero{color:var(--accent);font-size:40px;}
-.goal-def{flex:1 1 280px;font-size:16px;line-height:1.55;color:var(--muted);max-width:44ch;margin:0;}
-.formula{font:14px/1.6 var(--mono);color:var(--faint);margin:18px 0 0;}
-.formula .fx{color:var(--ink);}
+/* ---- the goal ------------------------------------------------------------ */
+.goal-lead{font:400 23px/1.45 var(--serif);color:var(--ink);max-width:58ch;margin:0 0 14px;}
+
+/* ---- section break: from the problem to the approach --------------------- */
+.shift{display:flex;align-items:center;gap:26px;margin:60px 0 8px;}
+.shift-rule{flex:1 1 auto;border-top:1px solid var(--rule);}
+.shift-text{flex:0 0 auto;font:italic 22px/1.3 var(--serif);color:var(--accent);}
+/* the output term, marked the Tufte way: small caps at text weight, a quiet
+   rust accent — the smallest effective difference, not bold ALL-CAPS shouting */
+.gr{font-variant-caps:small-caps;font-weight:400;font-style:normal;
+    letter-spacing:.03em;color:var(--accent);}
 
 /* ---- what's fixed: the line at a glance (capacity pips) ------------------ */
 .line-cap{font:italic 14px/1.4 var(--serif);color:var(--faint);margin:12px 0 2px;}

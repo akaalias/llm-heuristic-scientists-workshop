@@ -4,6 +4,11 @@
 // state with JS disabled; the chart + live stream are pure enhancement.
 // ============================================================================
 
+// Source for row-expand detail. null → live server (`/detail?key=…`). The static
+// export (tools/export_site.py) rewrites this to a baked "details.json" map so
+// the row-expand works on GitHub Pages, where there is no live endpoint.
+const DETAILS_URL = null;
+
 // ---- chart geometry & helpers ---------------------------------------------
 const VB = {W:1000, H:288, L:68, R:20, T:14, B:30};
 const chartSeen = new Set();   // keys already drawn — so only new dots animate in
@@ -266,6 +271,16 @@ function renderChart(points, target, animate){
         || '<div class="detail-inner"><p class="d-loading">loading…</p></div>'}</td>`;
     row.after(tr);
   }
+  // static mode (GitHub Pages): one baked JSON map of every experiment's detail,
+  // fetched once and cached, instead of a per-key call to the live server.
+  let staticDetails = null;
+  function loadStaticDetails(){
+    if (!staticDetails)
+      staticDetails = fetch(DETAILS_URL).then(r => r.ok ? r.json() : {}).catch(() => ({}));
+    return staticDetails;
+  }
+  const NOT_FOUND = '<div class="detail-inner"><p class="d-loading">not found</p></div>';
+
   async function openDetail(key, scroll){
     expandedKey = key;
     insertDetail(key);
@@ -273,9 +288,13 @@ function renderChart(points, target, animate){
     if (detailCache[key] === undefined){
       detailCache[key] = null;   // in flight — don't double-fetch
       try {
-        const res = await fetch("detail?key=" + encodeURIComponent(key));
-        detailCache[key] = res.ok ? buildDetail(await res.json())
-          : '<div class="detail-inner"><p class="d-loading">not found</p></div>';
+        if (DETAILS_URL){
+          const d = (await loadStaticDetails())[key];
+          detailCache[key] = d ? buildDetail(d) : NOT_FOUND;
+        } else {
+          const res = await fetch("detail?key=" + encodeURIComponent(key));
+          detailCache[key] = res.ok ? buildDetail(await res.json()) : NOT_FOUND;
+        }
       } catch (e) {
         detailCache[key] = '<div class="detail-inner"><p class="d-loading">failed to load</p></div>';
       }

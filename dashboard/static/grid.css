@@ -7,9 +7,40 @@
 .sample-h{font:400 23px/1.2 var(--serif);color:var(--ink);margin:0;padding-bottom:8px;
           border-bottom:1.5px solid var(--ink);display:flex;align-items:baseline;
           justify-content:space-between;font-variant-numeric:lining-nums;}
-.sample-h .cnt{font:italic 14px/1 var(--serif);color:var(--faint);}
+.sample-h .cnt{display:flex;align-items:baseline;gap:12px;}
+.sample-h .cnt-n{font:italic 14px/1 var(--serif);color:var(--faint);}
 .sample-title{display:flex;align-items:baseline;gap:11px;}
 .sample-id{font:12px/1 var(--mono);color:var(--faint);}
+.sample-desc{margin:11px 0 0;max-width:64ch;color:var(--muted);
+             font:italic 16px/1.55 var(--serif);}
+
+/* Overlay button — quiet, sits to the right of the experiment count. */
+.ov-btn{font:600 11px/1 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+        letter-spacing:.07em;color:var(--accent);background:none;cursor:pointer;
+        border:1px solid var(--rule);border-radius:2px;padding:5px 9px;transition:all .12s;}
+.ov-btn:hover{background:var(--accent);color:var(--paper);border-color:var(--accent);}
+
+/* Overlay modal — all of a scenario's thumbnails stacked, each at 1/N opacity,
+   blown up so faint clusters become legible. */
+.ov-modal[hidden]{display:none;}
+.ov-modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+          padding:5vh 4vw;}
+.ov-backdrop{position:absolute;inset:0;background:rgba(20,18,12,.55);backdrop-filter:blur(2px);}
+.ov-dialog{position:relative;background:var(--paper);border:1px solid var(--rule);
+           box-shadow:0 18px 50px rgba(0,0,0,.32);max-width:min(900px,92vw);width:100%;
+           max-height:90vh;display:flex;flex-direction:column;}
+.ov-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+         padding:18px 22px 14px;border-bottom:1.5px solid var(--ink);}
+.ov-title{font:400 22px/1.2 var(--serif);color:var(--ink);}
+.ov-sub{margin-left:11px;font:italic 14px/1 var(--serif);color:var(--faint);}
+.ov-close{font:300 28px/1 var(--serif);color:var(--muted);background:none;border:0;cursor:pointer;
+          padding:0 2px;align-self:flex-start;}
+.ov-close:hover{color:var(--accent);}
+.ov-stage{position:relative;margin:22px;flex:1 1 auto;min-height:0;
+          background:#fcfbf2;border-left:2px solid var(--rule);}
+/* every layer occupies the same box; thumbs stack pixel-for-pixel. */
+.ov-layer{position:absolute;inset:0;padding:14px 18px;}
+.ov-layer svg.thumb{width:100%;height:100%;}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
       gap:24px 28px;margin-top:20px;}
 .cell{display:block;text-decoration:none;color:inherit;}

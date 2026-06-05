@@ -59,14 +59,12 @@ PING_EVERY  = 10    # send an SSE comment every Nth idle poll (detects drops)
 COLUMNS = [
     ("n",              "#",        "num"),
     ("run_id",         "Run",      "mono"),
-    ("scenario",       "Scenario", ""),
     ("model",          "Model",    "mono"),
-    ("iterations",     "Iters",    "num"),
-    ("patience",       "Pat",      "num"),
-    ("meta_pivots",    "MPiv",     "num"),
+    ("library",        "Library",  "mono"),
+    ("patience",       "Patience", "num"),
+    ("slug",           "Slug",     "mono"),
     ("total_lateness", "Lateness", "num"),
     ("status",         "Status",   ""),
-    ("timestamp",      "Time",     "faint"),
 ]
 
 
@@ -132,6 +130,17 @@ def render_rows(rows: list[dict]) -> str:
             raw = r.get(field, "") or ""
             if field == "status":
                 cell = _status_cell(raw)
+            elif field == "slug":
+                # derived from the title — the experiment's symbol, not a CSV field
+                title = r.get("title", "")
+                cell = html.escape(slug(title)) if title else '<span class="faint">—</span>'
+            elif field == "library":
+                # show just the filename; full path on hover + in the expand panel
+                if raw:
+                    base = raw.rsplit("/", 1)[-1]
+                    cell = f'<span title="{html.escape(raw)}">{html.escape(base)}</span>'
+                else:
+                    cell = '<span class="faint">—</span>'
             elif field == "total_lateness":
                 txt = raw if raw else "—"
                 strong = " best" if best_row else ""
@@ -465,9 +474,17 @@ def _lat_key(v) -> float:
 SCENARIO_TITLES = {sc.name: (getattr(sc, "title", "") or sc.name)
                    for sc in [*TRAINING_BATTERY, HIDDEN_TEST, STRESS]}
 
+# sample name → the narrative blurb (the floor's-eye description of the night).
+SCENARIO_BLURBS = {sc.name: (getattr(sc, "blurb", "") or "")
+                   for sc in [*TRAINING_BATTERY, HIDDEN_TEST, STRESS]}
+
 
 def scenario_title(name: str) -> str:
     return SCENARIO_TITLES.get(name, name)
+
+
+def scenario_blurb(name: str) -> str:
+    return SCENARIO_BLURBS.get(name, "")
 
 
 def render_grid(rows: list[dict], csv_dir: Path) -> str:
@@ -495,6 +512,11 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
     for name in order:
         items = sorted(groups[name], key=lambda rs: _lat_key(rs[1].get("lateness")))
         cells = []
+        layers = []
+        n = len(items)
+        # equal share of full opacity, so n thumbnails sum to one opaque image —
+        # overlapping bars darken where many experiments agree (the clusters).
+        layer_op = 1.0 / n if n else 1.0
         for r, s in items:
             key = _row_key(r)
             title = r.get("title", "") or "Untitled"
@@ -505,14 +527,29 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
                 f'<div class="cell-cap"><span class="cell-n">#{html.escape(r.get("n",""))}</span>'
                 f'<span class="cell-title">{html.escape(title)}</span>'
                 f'<span class="cell-lat">{html.escape(str(lat))}</span></div></a>')
+            layers.append(
+                f'<div class="ov-layer" style="opacity:{layer_op:.4f}">{gantt_thumb(s)}</div>')
         nm_title = scenario_title(name)
         id_html = (f'<span class="sample-id">{html.escape(name)}</span>'
                    if nm_title != name else "")
+        blurb = scenario_blurb(name)
+        desc_html = (f'<p class="sample-desc">{html.escape(blurb)}</p>' if blurb else "")
+        ov_id = "ov-" + re.sub(r"[^a-zA-Z0-9_-]", "-", name)
+        modal = (
+            f'<div class="ov-modal" id="{ov_id}" hidden>'
+            f'<div class="ov-backdrop" data-ov-close></div>'
+            f'<div class="ov-dialog" role="dialog" aria-modal="true" aria-label="Overlay of {html.escape(nm_title)} schedules">'
+            f'<header class="ov-head"><div><span class="ov-title">{html.escape(nm_title)}</span>'
+            f'<span class="ov-sub">all {n} experiments, overlaid at {layer_op*100:.1f}% each</span></div>'
+            f'<button class="ov-close" type="button" data-ov-close aria-label="Close">&times;</button></header>'
+            f'<div class="ov-stage">{"".join(layers)}</div></div></div>')
         sections.append(
             f'<section class="sample"><h2 class="sample-h">'
             f'<span class="sample-title">{html.escape(nm_title)}{id_html}</span>'
-            f'<span class="cnt">{len(items)} experiments</span></h2>'
-            f'<div class="grid">{"".join(cells)}</div></section>')
+            f'<span class="cnt"><span class="cnt-n">{n} experiments</span>'
+            f'<button class="ov-btn" type="button" data-ov-open="{ov_id}">Overlay</button></span></h2>'
+            f'{desc_html}'
+            f'<div class="grid">{"".join(cells)}</div>{modal}</section>')
     return "".join(sections)
 
 
@@ -854,7 +891,7 @@ def render_restaurant_page(template: str, csv_path: Path) -> str:
 STATION_VIEW = {
     "prep":    ("Cold prep & mise", "salads, starters, all the cold work",      False),
     "grill":   ("The grill",        "every steak and burger has to pass here",  True),
-    "stove":   ("The range",        "pasta and soup share the single burner",   True),
+    "stove":   ("The stove",        "pasta and soup share the single burner",   True),
     "fryer":   ("The fryer",        "fries and anything fried",                 False),
     "oven":    ("The oven",         "finishing and melting",                    False),
     "plating": ("The pass",         "every dish is plated here, one at a time", False),

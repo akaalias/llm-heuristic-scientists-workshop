@@ -17,24 +17,29 @@
 <div class="wrap">
 
   <section class="hero">
-    <p class="hero-q">One grill. One range. A full room.<br>Which ticket do you fire next?</p>
+    <p class="hero-q">One grill. One stove. A full room.<br>Which order do you cook next?</p>
     <p class="hero-sub">Every plate at <!--NAME--> is cooked to order. Get the sequence right and
-    the night flows; get it wrong and the pass jams. We hand that one decision — <em>what to cook
-    next</em> — to an AI that writes its own scheduling rule and keeps sharpening it.</p>
+    the night flows; get it wrong and the plates run late. We need to discover a simple <span class="gr">groundrule</span> that
+    lets everyone in the kitchen make the best possible call on <em>what to cook next</em>.</p>
   </section>
 
   <section class="prob-section">
     <h2 class="prob-h">The goal</h2>
-    <div class="goal">
-      <div class="goal-num">total lateness <span class="goal-arrow">&rarr;</span> <span class="goal-zero">0</span></div>
-      <p class="goal-def">For every table, count the minutes its food lands past the promised
-      time, and add them up. Early counts for nothing. A perfect night is zero.</p>
-    </div>
-    <p class="formula"><span class="fx">lateness = &Sigma; max(0, ready &minus; promised)</span> &nbsp;over every table</p>
+    <p class="goal-lead">Every table is served on time — and all together, so no one sits watching
+    a friend eat while their own plate is still in the kitchen.</p>
+    <p class="prose">The fewer minutes anyone's left waiting, the better the night — technically
+    speaking, we want to reduce the latency to, ideally, zero.</p>
   </section>
 
   <section class="prob-section">
-    <h2 class="prob-h">What's fixed</h2>
+    <h2 class="prob-h">The problem</h2>
+    <p class="prose">Get the order of cooking wrong and it shows — here are four nights a careless
+    <span class="gr">groundrule</span> mis-scheduled, plates stacking up behind the busiest station and landing minutes late.</p>
+    <!--FAILING_FIG-->
+  </section>
+
+  <section class="prob-section">
+    <h2 class="prob-h">What we can't change</h2>
     <p class="prose">We don't touch the kitchen, the recipes, or the concept — <!--NAME--> stays
     exactly what it is. The only lever is <b>sequence</b>: the order we cook things in. This is
     the line we have to work with —</p>
@@ -42,26 +47,16 @@
     <div class="line"><!--STATIONS--></div>
   </section>
 
-  <section class="prob-section">
-    <h2 class="prob-h">Why it's hard</h2>
-    <p class="prose">The bottleneck won't sit still. One table fires two steaks and a burger —
-    three cuts, one grill — while pasta stacks up on the range. Protect the grill and the range
-    falls behind; protect the range and the grill does. No fixed rule wins every night: the right
-    move depends on which station is the wall <em>tonight</em>.</p>
-  </section>
+  <div class="shift">
+    <span class="shift-rule"></span>
+    <span class="shift-text">So &mdash; how do we find that <span class="gr">groundrule</span>?</span>
+    <span class="shift-rule"></span>
+  </div>
 
   <section class="prob-section">
-    <h2 class="prob-h">When it goes wrong</h2>
-    <p class="prose">Get the sequence wrong and it shows. Here are four nights an early, careless
-    rule mis-scheduled — work piling up behind the bottleneck, every dashed line a deadline blown,
-    the lateness running into the dozens.</p>
-    <!--FAILING_FIG-->
-  </section>
-
-  <section class="prob-section">
-    <h2 class="prob-h">How the AI finds the rule</h2>
+    <h2 class="prob-h">How the AI finds the groundrule</h2>
     <svg class="cycle" viewBox="0 0 600 420" role="img"
-         aria-label="The loop: propose a rule, run it, score it, keep the best — repeating">
+         aria-label="The loop: propose a groundrule, run it, score it, keep the best — repeating">
       <defs>
         <marker id="cyc-arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="#8a857a"/>
@@ -77,7 +72,7 @@
       <text class="ccenter-sub" x="300" y="231">round after round</text>
       <!-- 1 · PROPOSE (top) -->
       <text class="clabel" x="300" y="50"  text-anchor="middle">PROPOSE</text>
-      <text class="csub"   x="300" y="67"  text-anchor="middle">a scheduling rule</text>
+      <text class="csub"   x="300" y="67"  text-anchor="middle">a <tspan fill="#8c2f1f" font-variant="small-caps" font-style="normal">groundrule</tspan></text>
       <circle class="cnode" cx="300" cy="90" r="15"/>
       <text class="cnum" x="300" y="95" text-anchor="middle">1</text>
       <!-- 2 · RUN (right) -->
@@ -89,30 +84,30 @@
       <circle class="cnode" cx="300" cy="340" r="15"/>
       <text class="cnum" x="300" y="345" text-anchor="middle">3</text>
       <text class="clabel" x="300" y="374" text-anchor="middle">SCORE</text>
-      <text class="csub"   x="300" y="391" text-anchor="middle">the total lateness</text>
+      <text class="csub"   x="300" y="391" text-anchor="middle">the total wait</text>
       <!-- 4 · KEEP (left) -->
       <circle class="cnode" cx="175" cy="215" r="15"/>
       <text class="cnum" x="175" y="220" text-anchor="middle">4</text>
       <text class="clabel" x="152" y="211" text-anchor="end">KEEP</text>
       <text class="csub"   x="152" y="228" text-anchor="end">the best, build on it</text>
     </svg>
-    <p class="cycle-cap">Each round keeps only what beats the best so far, and builds the next rule
+    <p class="cycle-cap">Each round keeps only what beats the best so far, and builds the next <span class="gr">groundrule</span>
     on it — climbing toward one that holds up on every night, not just an easy one.</p>
   </section>
 
   <section class="prob-section">
     <h2 class="prob-h">The proving ground</h2>
     <p class="prose">Each candidate faces a battery of service nights, every one leaning on a
-    different station — so a winning rule has to be good all round, not just on the easy nights.</p>
+    different station — so a winning <span class="gr">groundrule</span> has to be good all round, not just on the easy nights.</p>
     <div class="nights"><!--NIGHTS_TRAIN--></div>
     <p class="prose set-off">Two more nights stay sealed. The kitchen never trains on them, so
-    they're the exam that proves a rule <em>generalised</em> rather than memorised.</p>
+    they're the exam that proves a <span class="gr">groundrule</span> <em>generalised</em> rather than memorised.</p>
     <div class="nights held"><!--NIGHTS_HELDOUT--></div>
   </section>
 
   <section class="prob-section">
     <h2 class="prob-h">What you get</h2>
-    <p class="prose">A single priority rule, in plain English — one line the expediter could read
+    <p class="prose">Our <span class="gr">groundrule</span> — one line the expediter could read
     off a card at the pass (something like <em>&ldquo;start whatever's blocking the busiest
     station&rdquo;</em>). You can watch it get discovered on the <a href="/dashboard">dashboard</a>,
     see each candidate's schedule on the <a href="/grid">grid</a>, and trace the winning idea's
