@@ -485,7 +485,7 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
             title = r.get("title", "") or "Untitled"
             lat = s.get("lateness", "")
             cells.append(
-                f'<a class="cell" href="/#exp={quote(key)}" title="{html.escape(title)}">'
+                f'<a class="cell" href="/dashboard#exp={quote(key)}" title="{html.escape(title)}">'
                 f'<div class="cell-thumb">{gantt_thumb(s)}</div>'
                 f'<div class="cell-cap"><span class="cell-n">#{html.escape(r.get("n",""))}</span>'
                 f'<span class="cell-title">{html.escape(title)}</span>'
@@ -854,12 +854,12 @@ class Handler(BaseHTTPRequestHandler):
             self.serve_static_asset()
         elif self.path in ("/grid", "/grid.html"):
             self.serve_static_page(GRID_TMPL, render_grid_page)
-        elif self.path in ("/restaurant", "/restaurant.html"):
-            self.serve_static_page(RESTO_TMPL, render_restaurant_page)
         elif self.path in ("/lineage", "/lineage.html"):
             self.serve_static_page(LINEAGE_TMPL, render_lineage_page, with_target=True)
-        elif self.path in ("/", "/index.html"):
-            self.serve_static_page(TEMPLATE, render_page, with_target=True)
+        elif self.path in ("/dashboard", "/dashboard.html"):
+            self.serve_static_page(TEMPLATE, render_page, with_target=True)   # the run log
+        elif self.path in ("/", "/index.html", "/restaurant", "/restaurant.html"):
+            self.serve_static_page(RESTO_TMPL, render_restaurant_page)        # restaurant = home
         else:
             self.send_error(404)
 

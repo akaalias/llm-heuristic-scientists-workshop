@@ -141,5 +141,5 @@
     hoveringKey = null; unlit(); tip.style.opacity = "0";
   });
   svg.addEventListener("click", e => { const m = e.target.closest("[data-key]");
-    if (m) location.href = "index.html#exp=" + encodeURIComponent(m.getAttribute("data-key")); });
+    if (m) location.href = "dashboard.html#exp=" + encodeURIComponent(m.getAttribute("data-key")); });
 })();

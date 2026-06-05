@@ -32,10 +32,10 @@ DEFAULT_OUT = ROOT / "docs"
 
 # (output filename, template path, render fn, passes a `target` arg)
 PAGES = [
-    ("index.html",      server.TEMPLATE,     server.render_page,            True),
-    ("grid.html",       server.GRID_TMPL,    server.render_grid_page,       False),
-    ("lineage.html",    server.LINEAGE_TMPL, server.render_lineage_page,    True),
-    ("restaurant.html", server.RESTO_TMPL,   server.render_restaurant_page, False),
+    ("index.html",     server.RESTO_TMPL,   server.render_restaurant_page, False),  # landing = restaurant
+    ("dashboard.html", server.TEMPLATE,     server.render_page,            True),   # the run log
+    ("grid.html",      server.GRID_TMPL,    server.render_grid_page,       False),
+    ("lineage.html",   server.LINEAGE_TMPL, server.render_lineage_page,    True),
 ]
 
 
@@ -43,18 +43,19 @@ def rewrite_html(s: str) -> str:
     """Server-absolute URLs → relative, so pages work under /<repo>/ on Pages
     and link to each other as static files."""
     return (s
-            .replace('="/static/',        '="static/')               # css/js/img refs
-            .replace('href="/#exp=',      'href="index.html#exp=')    # grid deep-links
-            .replace('href="/grid"',      'href="grid.html"')
-            .replace('href="/lineage"',   'href="lineage.html"')
-            .replace('href="/restaurant"', 'href="restaurant.html"')
-            .replace('href="/"',          'href="index.html"'))
+            .replace('="/static/',            '="static/')                  # css/js/img refs
+            .replace('href="/dashboard#exp=', 'href="dashboard.html#exp=')  # grid deep-links
+            .replace('href="/dashboard"',     'href="dashboard.html"')
+            .replace('href="/grid"',          'href="grid.html"')
+            .replace('href="/lineage"',       'href="lineage.html"')
+            .replace('href="/restaurant"',    'href="index.html"')          # restaurant = index
+            .replace('href="/"',              'href="index.html"'))
 
 
 def rewrite_js(s: str) -> str:
-    """Patch the one JS deep-link that points at the dashboard root (lineage.js
-    builds `"/#exp=" + key`) so it targets the static index instead."""
-    return s.replace('"/#exp="', '"index.html#exp="')
+    """Patch the JS deep-link into the dashboard (lineage.js builds
+    `"/dashboard#exp=" + key`) so it targets the static dashboard page."""
+    return s.replace('"/dashboard#exp="', '"dashboard.html#exp="')
 
 
 def main() -> None:
