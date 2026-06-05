@@ -19,10 +19,14 @@ Usage
 
 import argparse
 import os
+import socket
+import sys
 import traceback
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
+import httpx
 from dotenv import load_dotenv
 from huggingface_hub import InferenceClient
 
@@ -62,6 +66,51 @@ def build_client(model: str, base_url: str | None) -> InferenceClient:
     if base_url:
         return InferenceClient(base_url=base_url, api_key=os.environ.get("LLM_API_KEY", "lm-studio"))
     return InferenceClient(model=model, token=os.environ["HF_TOKEN"])
+
+
+class ServerUnreachable(RuntimeError):
+    """The inference endpoint refused or dropped the connection. Surfaced as a
+    short, actionable message instead of a network traceback — almost always
+    means the local model server (e.g. LM Studio) simply isn't running."""
+
+
+# Network-level failures that all mean "couldn't talk to the server" — refused,
+# timed out, or disconnected mid-request. httpx.TransportError is the umbrella
+# (covers ConnectError, ConnectTimeout, ReadError, RemoteProtocolError, …); we
+# only ever see one here AFTER huggingface_hub has exhausted its own retries, so
+# treating it as fatal-but-friendly is right. Translated into a clean
+# ServerUnreachable rather than an httpx/httpcore stack dump.
+_CONN_ERRORS = (httpx.TransportError, ConnectionError, OSError)
+
+
+def _unreachable_msg(base_url: str | None) -> str:
+    if base_url:
+        return (
+            f"Can't reach the inference server at {base_url}\n"
+            "  It refused or dropped the connection — your local model server probably\n"
+            "  isn't running (or is still loading the model). Start it (e.g. LM Studio)\n"
+            "  at that address and retry, or drop --api to use Hugging Face."
+        )
+    return (
+        "Can't reach Hugging Face Inference (connection error)\n"
+        "  Check your network connection and HF_TOKEN, then retry."
+    )
+
+
+def preflight(base_url: str | None) -> None:
+    """Fail fast and friendly if a local server isn't up: a quick TCP probe so a
+    forgotten server raises ServerUnreachable in under a second — before any
+    iteration banner or LLM call. No-op for the Hugging Face path, where the
+    first real request covers it."""
+    if not base_url:
+        return
+    parsed = urlparse(base_url)
+    host, port = parsed.hostname, parsed.port or (443 if parsed.scheme == "https" else 80)
+    try:
+        with socket.create_connection((host, port), timeout=3):
+            pass
+    except OSError as exc:
+        raise ServerUnreachable(_unreachable_msg(base_url)) from exc
 
 
 def normalize_api(url: str | None) -> str | None:
@@ -130,7 +179,17 @@ def discover(model: str = MODEL, base_url: str | None = None,
              iterations: int = ITERATIONS, patience: int = PLATEAU_PATIENCE,
              meta_pivots: int = META_PLATEAU_PIVOTS, library: str | None = None) -> None:
     client = build_client(model, base_url)
+    preflight(base_url)   # fail fast if a local server isn't up
     run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # the run's exact inputs, recorded on every row so the dashboard can show
+    # what each experiment ran with (model/scenario are already separate columns)
+    run_params = {
+        "iterations":  iterations,
+        "patience":    patience,
+        "meta_pivots": meta_pivots,
+        "library":     library or "",
+        "api":         base_url or "",
+    }
     where  = base_url if base_url else "Hugging Face"
     print(f"discovering with model={model} via {where} ({iterations} iterations, "
           f"patience={patience}, meta-pivots={meta_pivots})")
@@ -214,9 +273,14 @@ def discover(model: str = MODEL, base_url: str | None = None,
                 prompt = refine_prompt(GANTT_SCENARIO, prev_value, prev_error, best_value)
 
         history.append({"role": "user", "content": prompt})
-        reply = client.chat_completion(
-            messages=history, model=model, max_tokens=MAX_TOKENS
-        ).choices[0].message.content
+        try:
+            reply = client.chat_completion(
+                messages=history, model=model, max_tokens=MAX_TOKENS
+            ).choices[0].message.content
+        except _CONN_ERRORS as exc:
+            # server went away mid-run — bail cleanly; iterations so far are
+            # already saved to disk, so nothing is lost.
+            raise ServerUnreachable(_unreachable_msg(base_url)) from exc
         history.append({"role": "assistant", "content": reply})
 
         code = extract_code(reply)
@@ -285,6 +349,7 @@ def discover(model: str = MODEL, base_url: str | None = None,
             parents        = parents,
             schedule       = schedule_data,
             pivot          = pivot,
+            params         = run_params,
         )
 
     print("\n=== best heuristic ===")
@@ -337,9 +402,13 @@ def main() -> None:
              "discovery/library.md). When unset, no library is sent.",
     )
     args = parser.parse_args()
-    discover(model=args.model, base_url=normalize_api(args.api),
-             iterations=args.iterations, patience=args.patience,
-             meta_pivots=args.meta_pivots, library=args.library)
+    try:
+        discover(model=args.model, base_url=normalize_api(args.api),
+                 iterations=args.iterations, patience=args.patience,
+                 meta_pivots=args.meta_pivots, library=args.library)
+    except ServerUnreachable as exc:
+        print(f"\n✗ {exc}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

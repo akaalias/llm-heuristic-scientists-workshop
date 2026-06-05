@@ -4,9 +4,7 @@ A tiny restaurant-kitchen scheduling problem. Your job is to discover good
 priority heuristics — by hand, by prompting an LLM, or both — and beat the
 baselines on a held-out scenario.
 
-The problem: orders arrive over time, each containing dishes, each a chain
-of steps that compete for limited station capacity. The objective is to
-minimize **total_lateness** = sum of `max(0, finish - due)` per order.
+The problem: orders arrive over time, each containing dishes, each a chain of steps that compete for limited station capacity. The objective is to minimize **total_lateness** = sum of `max(0, finish - due)` per order.
 
 A heuristic is a single Python function:
 
@@ -15,8 +13,7 @@ def priority(step, state) -> float:
     ...
 ```
 
-The placer greedily picks the highest-priority eligible step at each tick.
-See `problem_definition/model.py` and `discovery/placer.py` for the full contract.
+The placer greedily picks the highest-priority eligible step at each tick. See `problem_definition/model.py` and `discovery/placer.py` for the full contract.
 
 ### How the placer uses it
 

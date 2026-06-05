@@ -33,6 +33,7 @@ DEFAULT_OUT = ROOT / "docs"
 # (output filename, template path, render fn, passes a `target` arg)
 PAGES = [
     ("index.html",     server.RESTO_TMPL,   server.render_restaurant_page, False),  # landing = restaurant
+    ("problem.html",   server.PROBLEM_TMPL, server.render_problem_page,    False),
     ("dashboard.html", server.TEMPLATE,     server.render_page,            True),   # the run log
     ("grid.html",      server.GRID_TMPL,    server.render_grid_page,       False),
     ("lineage.html",   server.LINEAGE_TMPL, server.render_lineage_page,    True),
@@ -48,6 +49,7 @@ def rewrite_html(s: str) -> str:
             .replace('href="/dashboard"',     'href="dashboard.html"')
             .replace('href="/grid"',          'href="grid.html"')
             .replace('href="/lineage"',       'href="lineage.html"')
+            .replace('href="/problem"',       'href="problem.html"')
             .replace('href="/restaurant"',    'href="index.html"')          # restaurant = index
             .replace('href="/"',              'href="index.html"'))
 
@@ -82,7 +84,7 @@ def main() -> None:
 
     # keep Pages lean: drop full-res originals that have a web/ variant — the
     # pages reference the small web variant, so docs only needs to ship that one.
-    for category in ("portraits", "scenes", "marks"):
+    for category in ("portraits", "scenes", "marks", "problem"):
         webdir = out / "static" / category / "web"
         if not webdir.is_dir():
             continue

@@ -29,6 +29,7 @@ CONFIG = {
     "portraits": (360, "L"),     # shown ≤130px; greyscale (page is monochrome)
     "scenes":    (900, "L"),     # shown up to a column width; greyscale
     "marks":     (320, "RGBA"),  # keep transparency
+    "problem":   (1600, "RGB"),  # dense coloured screenshots — keep them legible in-column
 }
 
 

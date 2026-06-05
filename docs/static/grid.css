@@ -8,6 +8,8 @@
           border-bottom:1.5px solid var(--ink);display:flex;align-items:baseline;
           justify-content:space-between;font-variant-numeric:lining-nums;}
 .sample-h .cnt{font:italic 14px/1 var(--serif);color:var(--faint);}
+.sample-title{display:flex;align-items:baseline;gap:11px;}
+.sample-id{font:12px/1 var(--mono);color:var(--faint);}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
       gap:24px 28px;margin-top:20px;}
 .cell{display:block;text-decoration:none;color:inherit;}

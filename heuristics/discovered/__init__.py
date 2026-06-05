@@ -19,7 +19,28 @@ CSV_FIELDS = [
     "n", "timestamp", "run_id", "scenario", "model", "iter",
     "total_lateness", "status", "file",
     "title", "summary", "parents", "pivot",
+    # run-level CLI parameters, captured on every row (constant within a run) so
+    # the dashboard can show exactly what inputs each experiment ran with.
+    "iterations", "patience", "meta_pivots", "library", "api",
 ]
+
+
+def _ensure_csv_columns() -> None:
+    """Backfill newly-added CSV_FIELDS into an existing runs.csv so its header and
+    every historical row carry them (empty). No-op if the file is absent or
+    already current. Keeps DictWriter appends aligned after a schema change."""
+    if not RUNS_CSV.exists():
+        return
+    with RUNS_CSV.open(newline="") as f:
+        reader = csv.DictReader(f)
+        if all(c in (reader.fieldnames or []) for c in CSV_FIELDS):
+            return
+        rows = list(reader)
+    with RUNS_CSV.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_FIELDS, extrasaction="ignore")
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({k: (row.get(k) or "") for k in CSV_FIELDS})
 
 
 def _next_index() -> int:
@@ -146,6 +167,7 @@ def save_iteration(
     parents:        list[str] | None = None,
     schedule:       dict | None = None,
     pivot:          bool = False,
+    params:         dict | None = None,
 ) -> Path:
     """Save one iteration's code as a .py module and append a summary row
     to runs.csv. Returns the .py path.
@@ -158,6 +180,10 @@ def save_iteration(
     `schedule`, if given, is the built schedule (orders + placed steps), saved
     as a sidecar .schedule.json so the dashboard can draw a Gantt without ever
     executing the heuristic.
+
+    `params`, if given, holds the run-level CLI parameters (iterations, patience,
+    meta_pivots, library, api); they are constant within a run and written onto
+    every row so the dashboard can show each experiment's exact inputs.
     """
     HERE.mkdir(parents=True, exist_ok=True)
     n = _next_index()
@@ -191,6 +217,8 @@ def save_iteration(
     )
     py_path.write_text(header + code + "\n")
 
+    p = params or {}
+    _ensure_csv_columns()                 # align an older CSV before we append
     write_header = not RUNS_CSV.exists()
     with RUNS_CSV.open("a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_FIELDS)
@@ -210,5 +238,10 @@ def save_iteration(
             "summary":        summary,
             "parents":        parents_str,
             "pivot":          "1" if pivot else "",
+            "iterations":     p.get("iterations", ""),
+            "patience":       p.get("patience", ""),
+            "meta_pivots":    p.get("meta_pivots", ""),
+            "library":        p.get("library") or "",
+            "api":            p.get("api") or "",
         })
     return py_path

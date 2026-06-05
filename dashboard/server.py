@@ -34,13 +34,16 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
-from problem_definition.model import RESTAURANT, RECIPES, MENU, MENU_SECTIONS, TEAM_SIDES
+from problem_definition.model import (RESTAURANT, RECIPES, MENU, MENU_SECTIONS,
+                                      TEAM_SIDES, STATION_CAPACITY)
+from problem_definition.scenarios import TRAINING_BATTERY, HIDDEN_TEST, STRESS
 
 HERE        = Path(__file__).parent
 TEMPLATE    = HERE / "index.html"
 GRID_TMPL   = HERE / "grid.html"
 LINEAGE_TMPL = HERE / "lineage.html"
 RESTO_TMPL  = HERE / "restaurant.html"
+PROBLEM_TMPL = HERE / "problem.html"
 STATIC_DIR  = HERE / "static"          # shared CSS/JS, served from /static/
 DEFAULT_CSV = HERE.parent / "heuristics" / "discovered" / "runs.csv"
 
@@ -58,6 +61,9 @@ COLUMNS = [
     ("run_id",         "Run",      "mono"),
     ("scenario",       "Scenario", ""),
     ("model",          "Model",    "mono"),
+    ("iterations",     "Iters",    "num"),
+    ("patience",       "Pat",      "num"),
+    ("meta_pivots",    "MPiv",     "num"),
     ("total_lateness", "Lateness", "num"),
     ("status",         "Status",   ""),
     ("timestamp",      "Time",     "faint"),
@@ -455,6 +461,15 @@ def _lat_key(v) -> float:
     return f if f is not None else float("inf")
 
 
+# sample name (e.g. "training_v2") → human title ("The Early Rush"), for labels.
+SCENARIO_TITLES = {sc.name: (getattr(sc, "title", "") or sc.name)
+                   for sc in [*TRAINING_BATTERY, HIDDEN_TEST, STRESS]}
+
+
+def scenario_title(name: str) -> str:
+    return SCENARIO_TITLES.get(name, name)
+
+
 def render_grid(rows: list[dict], csv_dir: Path) -> str:
     """Small-multiples grid grouped BY SAMPLE: a section per battery sample,
     and under each, every experiment's schedule on that sample (best on that
@@ -490,8 +505,12 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
                 f'<div class="cell-cap"><span class="cell-n">#{html.escape(r.get("n",""))}</span>'
                 f'<span class="cell-title">{html.escape(title)}</span>'
                 f'<span class="cell-lat">{html.escape(str(lat))}</span></div></a>')
+        nm_title = scenario_title(name)
+        id_html = (f'<span class="sample-id">{html.escape(name)}</span>'
+                   if nm_title != name else "")
         sections.append(
-            f'<section class="sample"><h2 class="sample-h">{html.escape(name)}'
+            f'<section class="sample"><h2 class="sample-h">'
+            f'<span class="sample-title">{html.escape(nm_title)}{id_html}</span>'
             f'<span class="cnt">{len(items)} experiments</span></h2>'
             f'<div class="grid">{"".join(cells)}</div></section>')
     return "".join(sections)
@@ -532,7 +551,9 @@ def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
         "symbol": slug(title),
         "title": title,
         "summary": r.get("summary", "") or "",
-        "schedules": [{"name": s.get("name", ""), "lateness": s.get("lateness", ""),
+        "schedules": [{"name": s.get("name", ""),
+                       "title": scenario_title(s.get("name", "")),
+                       "lateness": s.get("lateness", ""),
                        "svg": gantt_svg(s)} for s in samples],
         "thumb_svg": gantt_thumb(sched0) if sched0 else "",
         "code_html": highlight_py(code) if code else "",
@@ -540,6 +561,14 @@ def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
         "lateness": r.get("total_lateness", "") or "",
         "time": r.get("timestamp", "") or "",
         "status": r.get("status", "") or "",
+        "params": {                              # the run's exact CLI inputs
+            "model":       r.get("model", "") or "",
+            "api":         r.get("api", "") or "",
+            "iterations":  r.get("iterations", "") or "",
+            "patience":    r.get("patience", "") or "",
+            "meta_pivots": r.get("meta_pivots", "") or "",
+            "library":     r.get("library", "") or "",
+        },
     }
 
 
@@ -819,6 +848,95 @@ def render_restaurant_page(template: str, csv_path: Path) -> str:
                                                        exclude={(_chef(r["people"]) or {}).get("name")})))
 
 
+# ---- the problem page (plain-English explainer; static, no CSV) -----------
+
+# friendly label + note per station, in display order; bottleneck flag last.
+STATION_VIEW = {
+    "prep":    ("Cold prep & mise", "salads, starters, all the cold work",      False),
+    "grill":   ("The grill",        "every steak and burger has to pass here",  True),
+    "stove":   ("The range",        "pasta and soup share the single burner",   True),
+    "fryer":   ("The fryer",        "fries and anything fried",                 False),
+    "oven":    ("The oven",         "finishing and melting",                    False),
+    "plating": ("The pass",         "every dish is plated here, one at a time", False),
+    "waiting": ("Holding shelf",    "resting and cooling — no cook tied up",    False),
+}
+
+
+# which station each test night leans on hardest (for the night card chip).
+STRESS_TAG = {
+    "training":    "Grill",
+    "training_v2": "Fryer & cold",
+    "training_v3": "Grill",
+    "training_v4": "Range",
+    "training_v5": "Both walls",
+    "hidden_test": "Mixed",
+    "stress":      "Grill",
+}
+
+
+def render_stations(caps: dict) -> str:
+    """The line at a glance: each station as a row of capacity 'pips' (one filled
+    dot per cook/pan it can run at once — fewer dots = tighter), with the two real
+    choke points flagged."""
+    rows = []
+    for name, (label, note, bottleneck) in STATION_VIEW.items():
+        if name not in caps:
+            continue
+        n = caps[name]
+        if n >= 99:
+            pips = '<span class="pip pip--inf">&#8734;</span>'
+        else:
+            cls = "pip pip--bn" if bottleneck else "pip"
+            pips = "".join(f'<span class="{cls}"></span>' for _ in range(n))
+        tag = '<span class="bottleneck">bottleneck</span>' if bottleneck else ""
+        rows.append(
+            f'<div class="line-row{" line-row--bn" if bottleneck else ""}">'
+            f'<span class="ln-name">{html.escape(label)}{tag}</span>'
+            f'<span class="ln-pips" title="{n} at once">{pips}</span>'
+            f'<span class="ln-note">{html.escape(note)}</span></div>')
+    return "".join(rows)
+
+
+def render_nights(scenarios: list) -> str:
+    """A card per service night: its name, a chip for the station it stresses,
+    and the one-line sketch of what it throws at the kitchen."""
+    out = []
+    for sc in scenarios:
+        title = html.escape(getattr(sc, "title", "") or sc.name)
+        blurb = html.escape(getattr(sc, "blurb", "") or "")
+        tag = STRESS_TAG.get(sc.name, "")
+        chip = f'<span class="night-tag">{html.escape(tag)}</span>' if tag else ""
+        out.append(f'<div class="night"><div class="night-h"><span>{title}</span>{chip}</div>'
+                   f'<div class="night-b">{blurb}</div></div>')
+    return "".join(out)
+
+
+def failing_figure() -> str:
+    """The 'failing nights' screenshot beside the goal/constraints, if present at
+    static/problem/failing-nights.(webp|png). Otherwise a labelled placeholder so
+    the slot is visible while building."""
+    src = _asset_url("problem", "failing-nights")
+    if src:
+        return (f'<figure class="fail-fig">'
+                f'<img src="{src}" alt="Four service nights the kitchen badly mis-scheduled, '
+                f'each piling up minutes of lateness" loading="lazy">'
+                f'<figcaption>Four nights gone wrong: every <span class="x">&times;</span> is a '
+                f'table served late — and the lateness adds up fast.</figcaption></figure>')
+    return ('<div class="fail-fig fail-fig--empty"><span>failing nights screenshot<br>'
+            '<code>static/problem/failing-nights.png</code></span></div>')
+
+
+def render_problem_page(template: str, csv_path: Path) -> str:
+    """The plain-English 'what we're solving' page. csv_path is unused (the page
+    is descriptive only) but kept to match serve_static_page's contract."""
+    return (template
+            .replace("<!--NAME-->",           html.escape(RESTAURANT["name"]))
+            .replace("<!--STATIONS-->",       render_stations(STATION_CAPACITY))
+            .replace("<!--FAILING_FIG-->",    failing_figure())
+            .replace("<!--NIGHTS_TRAIN-->",   render_nights(TRAINING_BATTERY))
+            .replace("<!--NIGHTS_HELDOUT-->", render_nights([HIDDEN_TEST, STRESS])))
+
+
 def render_grid_page(template: str, csv_path: Path) -> str:
     rows = load_rows(csv_path)
     n = sum(1 for r in rows if schedule_samples(load_schedule(csv_path.parent, r.get("file", ""))))
@@ -856,6 +974,8 @@ class Handler(BaseHTTPRequestHandler):
             self.serve_static_page(GRID_TMPL, render_grid_page)
         elif self.path in ("/lineage", "/lineage.html"):
             self.serve_static_page(LINEAGE_TMPL, render_lineage_page, with_target=True)
+        elif self.path in ("/problem", "/problem.html"):
+            self.serve_static_page(PROBLEM_TMPL, render_problem_page)
         elif self.path in ("/dashboard", "/dashboard.html"):
             self.serve_static_page(TEMPLATE, render_page, with_target=True)   # the run log
         elif self.path in ("/", "/index.html", "/restaurant", "/restaurant.html"):

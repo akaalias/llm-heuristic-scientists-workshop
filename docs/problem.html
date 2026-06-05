@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1100">
+<title>The problem — Le Petit Renard</title>
+<link rel="stylesheet" href="static/base.css">
+<link rel="stylesheet" href="static/problem.css">
+</head>
+<body>
+<header class="dash-head">
+  <div class="eyebrow">LLM Heuristic Scientists · the problem</div>
+  <h1>What we're solving</h1>
+  <p class="sub">A kitchen scheduling problem — and an AI that learns to crack it.</p>
+  <div class="nav"><a href="index.html">&larr; The restaurant</a><a href="dashboard.html">Dashboard</a><a href="grid.html">Schedule grid</a><a href="lineage.html">Experiment lineage</a></div>
+</header>
+<div class="wrap">
+
+  <section class="hero">
+    <p class="hero-q">One grill. One range. A full room.<br>Which ticket do you fire next?</p>
+    <p class="hero-sub">Every plate at Le Petit Renard is cooked to order. Get the sequence right and
+    the night flows; get it wrong and the pass jams. We hand that one decision — <em>what to cook
+    next</em> — to an AI that writes its own scheduling rule and keeps sharpening it.</p>
+  </section>
+
+  <section class="prob-section">
+    <h2 class="prob-h">The goal</h2>
+    <div class="goal">
+      <div class="goal-num">total lateness <span class="goal-arrow">&rarr;</span> <span class="goal-zero">0</span></div>
+      <p class="goal-def">For every table, count the minutes its food lands past the promised
+      time, and add them up. Early counts for nothing. A perfect night is zero.</p>
+    </div>
+    <p class="formula"><span class="fx">lateness = &Sigma; max(0, ready &minus; promised)</span> &nbsp;over every table</p>
+  </section>
+
+  <section class="prob-section">
+    <h2 class="prob-h">What's fixed</h2>
+    <p class="prose">We don't touch the kitchen, the recipes, or the concept — Le Petit Renard stays
+    exactly what it is. The only lever is <b>sequence</b>: the order we cook things in. This is
+    the line we have to work with —</p>
+    <p class="line-cap">each <span class="pip pip--legend"></span> is one cook or pan working at once — the fewer, the tighter</p>
+    <div class="line"><div class="line-row"><span class="ln-name">Cold prep &amp; mise</span><span class="ln-pips" title="2 at once"><span class="pip"></span><span class="pip"></span></span><span class="ln-note">salads, starters, all the cold work</span></div><div class="line-row line-row--bn"><span class="ln-name">The grill<span class="bottleneck">bottleneck</span></span><span class="ln-pips" title="1 at once"><span class="pip pip--bn"></span></span><span class="ln-note">every steak and burger has to pass here</span></div><div class="line-row line-row--bn"><span class="ln-name">The range<span class="bottleneck">bottleneck</span></span><span class="ln-pips" title="1 at once"><span class="pip pip--bn"></span></span><span class="ln-note">pasta and soup share the single burner</span></div><div class="line-row"><span class="ln-name">The fryer</span><span class="ln-pips" title="1 at once"><span class="pip"></span></span><span class="ln-note">fries and anything fried</span></div><div class="line-row"><span class="ln-name">The oven</span><span class="ln-pips" title="1 at once"><span class="pip"></span></span><span class="ln-note">finishing and melting</span></div><div class="line-row"><span class="ln-name">The pass</span><span class="ln-pips" title="1 at once"><span class="pip"></span></span><span class="ln-note">every dish is plated here, one at a time</span></div><div class="line-row"><span class="ln-name">Holding shelf</span><span class="ln-pips" title="99 at once"><span class="pip pip--inf">&#8734;</span></span><span class="ln-note">resting and cooling — no cook tied up</span></div></div>
+  </section>
+
+  <section class="prob-section">
+    <h2 class="prob-h">Why it's hard</h2>
+    <p class="prose">The bottleneck won't sit still. One table fires two steaks and a burger —
+    three cuts, one grill — while pasta stacks up on the range. Protect the grill and the range
+    falls behind; protect the range and the grill does. No fixed rule wins every night: the right
+    move depends on which station is the wall <em>tonight</em>.</p>
+  </section>
+
+  <section class="prob-section">
+    <h2 class="prob-h">When it goes wrong</h2>
+    <p class="prose">Get the sequence wrong and it shows. Here are four nights an early, careless
+    rule mis-scheduled — work piling up behind the bottleneck, every dashed line a deadline blown,
+    the lateness running into the dozens.</p>
+    <figure class="fail-fig"><img src="static/problem/web/failing-nights.webp" alt="Four service nights the kitchen badly mis-scheduled, each piling up minutes of lateness" loading="lazy"><figcaption>Four nights gone wrong: every <span class="x">&times;</span> is a table served late — and the lateness adds up fast.</figcaption></figure>
+  </section>
+
+  <section class="prob-section">
+    <h2 class="prob-h">How the AI finds the rule</h2>
+    <svg class="cycle" viewBox="0 0 600 420" role="img"
+         aria-label="The loop: propose a rule, run it, score it, keep the best — repeating">
+      <defs>
+        <marker id="cyc-arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#8a857a"/>
+        </marker>
+      </defs>
+      <!-- clockwise arrows between the four nodes -->
+      <path class="carrow" marker-end="url(#cyc-arrow)" d="M346.8,99.1 A125,125 0 0 1 415.9,168.2"/>
+      <path class="carrow" marker-end="url(#cyc-arrow)" d="M415.9,261.8 A125,125 0 0 1 346.8,330.9"/>
+      <path class="carrow" marker-end="url(#cyc-arrow)" d="M253.2,330.9 A125,125 0 0 1 184.1,261.8"/>
+      <path class="carrow" marker-end="url(#cyc-arrow)" d="M184.1,168.2 A125,125 0 0 1 253.2,99.1"/>
+      <!-- centre -->
+      <text class="ccenter"     x="300" y="210">THE LOOP</text>
+      <text class="ccenter-sub" x="300" y="231">round after round</text>
+      <!-- 1 · PROPOSE (top) -->
+      <text class="clabel" x="300" y="50"  text-anchor="middle">PROPOSE</text>
+      <text class="csub"   x="300" y="67"  text-anchor="middle">a scheduling rule</text>
+      <circle class="cnode" cx="300" cy="90" r="15"/>
+      <text class="cnum" x="300" y="95" text-anchor="middle">1</text>
+      <!-- 2 · RUN (right) -->
+      <circle class="cnode" cx="425" cy="215" r="15"/>
+      <text class="cnum" x="425" y="220" text-anchor="middle">2</text>
+      <text class="clabel" x="448" y="211" text-anchor="start">RUN</text>
+      <text class="csub"   x="448" y="228" text-anchor="start">across every night</text>
+      <!-- 3 · SCORE (bottom) -->
+      <circle class="cnode" cx="300" cy="340" r="15"/>
+      <text class="cnum" x="300" y="345" text-anchor="middle">3</text>
+      <text class="clabel" x="300" y="374" text-anchor="middle">SCORE</text>
+      <text class="csub"   x="300" y="391" text-anchor="middle">the total lateness</text>
+      <!-- 4 · KEEP (left) -->
+      <circle class="cnode" cx="175" cy="215" r="15"/>
+      <text class="cnum" x="175" y="220" text-anchor="middle">4</text>
+      <text class="clabel" x="152" y="211" text-anchor="end">KEEP</text>
+      <text class="csub"   x="152" y="228" text-anchor="end">the best, build on it</text>
+    </svg>
+    <p class="cycle-cap">Each round keeps only what beats the best so far, and builds the next rule
+    on it — climbing toward one that holds up on every night, not just an easy one.</p>
+  </section>
+
+  <section class="prob-section">
+    <h2 class="prob-h">The proving ground</h2>
+    <p class="prose">Each candidate faces a battery of service nights, every one leaning on a
+    different station — so a winning rule has to be good all round, not just on the easy nights.</p>
+    <div class="nights"><div class="night"><div class="night-h"><span>The House Service</span><span class="night-tag">Grill</span></div><div class="night-b">The doors open on a quiet Tuesday and the room fills gently. Two tables order the moment they sit — a burger and fries, a steak and salad — and two more drift in over the next ten minutes. Easy tickets on their own, except two burgers and a steak are all bound for Priya&#x27;s single grill.</div></div><div class="night"><div class="night-h"><span>The Early Rush</span><span class="night-tag">Fryer &amp; cold</span></div><div class="night-b">The first Seaport crowd piles in off the bridge wanting something quick before the show — baskets of fries, bowls of the day&#x27;s soup, a salad to share. Light on the grill, but the fryer never stops and Marco&#x27;s range is three pots deep, every ticket on a short fuse.</div></div><div class="night"><div class="night-h"><span>The Grill Jam</span><span class="night-tag">Grill</span></div><div class="night-b">A small table that hits the grill hard. Two steaks and two burgers land almost on top of each other — four cuts of meat queued at a single fire while the salad and fries wait on the cold side. Mis-order Priya&#x27;s grill and every plate lands late.</div></div><div class="night"><div class="night-h"><span>The Range Run</span><span class="night-tag">Range</span></div><div class="night-b">A cold, wet night and the whole room wants comfort: pasta after pasta, the day&#x27;s soup by the bowl. Marco&#x27;s single range is the whole game — five pots deep with barely a burner to spare — while the odd salad and basket of fries slip by on the side.</div></div><div class="night"><div class="night-h"><span>The Late Seating</span><span class="night-tag">Both walls</span></div><div class="night-b">The last tables of the night sit down late and still want to eat fast. Grill and range are both buried — steaks and burgers stacked on one side, pasta and soup on the other — and every clock is short. Both bottlenecks bite at once; there&#x27;s no slack left to hide a bad call.</div></div></div>
+    <p class="prose set-off">Two more nights stay sealed. The kitchen never trains on them, so
+    they're the exam that proves a rule <em>generalised</em> rather than memorised.</p>
+    <div class="nights held"><div class="night"><div class="night-h"><span>The Unseen Cover</span><span class="night-tag">Mixed</span></div><div class="night-b">A held-out Thursday the kitchen never rehearsed on: five varied tables, a mix of grill, range and cold orders trickling in over ten minutes, with one heavy three-dish ticket buried in the middle. The true test of whether a method generalises or merely memorised the nights it trained on.</div></div><div class="night"><div class="night-h"><span>The Saturday Crush</span><span class="night-tag">Grill</span></div><div class="night-b">Saturday at full tilt, the long five-till-midnight window at its peak. A packed room all wanting red meat — steaks and burgers stacked on nearly every ticket with the tightest deadlines of the week. The grill is swamped, and any cook who ignores the bottleneck buries the whole service.</div></div></div>
+  </section>
+
+  <section class="prob-section">
+    <h2 class="prob-h">What you get</h2>
+    <p class="prose">A single priority rule, in plain English — one line the expediter could read
+    off a card at the pass (something like <em>&ldquo;start whatever's blocking the busiest
+    station&rdquo;</em>). You can watch it get discovered on the <a href="dashboard.html">dashboard</a>,
+    see each candidate's schedule on the <a href="grid.html">grid</a>, and trace the winning idea's
+    ancestry on the <a href="lineage.html">lineage</a> page.</p>
+  </section>
+
+</div>
+</body>
+</html>

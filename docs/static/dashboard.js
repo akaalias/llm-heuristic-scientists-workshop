@@ -192,6 +192,23 @@ function renderChart(points, target, animate){
           + `↳ ${esc(p.symbol)} <span class="pn">#${esc(p.n)}</span></span>`).join("")
       : `<div class="d-genesis">genesis — no parent</div>`;
 
+    // run-level CLI inputs — what this experiment actually ran with
+    const p = d.params || {};
+    const paramRows = [
+      ["model",       p.model],
+      ["api",         p.api || "Hugging Face"],
+      ["iterations",  p.iterations],
+      ["patience",    p.patience],
+      ["meta-pivots", p.meta_pivots],
+      ["library",     p.library || "none"],
+    ];
+    const params =
+      `<div class="d-params"><div class="d-lineage-h">Run parameters</div>`
+      + paramRows.map(([k, v]) =>
+          `<div class="d-fact"><span class="d-k">${esc(k)}</span>`
+          + `<span class="d-v">${esc(v || "—")}</span></div>`).join("")
+      + `</div>`;
+
     const meta =
       `<aside class="d-meta">`
       + `<div class="d-symbol">${esc(d.symbol)}</div>`
@@ -200,6 +217,7 @@ function renderChart(points, target, animate){
       +   `<div class="d-fact"><span class="d-k">Lateness</span><span class="d-v${failed ? " bad" : ""}">${esc(lateness)}</span></div>`
       +   `<div class="d-fact"><span class="d-k">Time</span><span class="d-v">${esc(time)}</span></div>`
       + `</div>`
+      + params
       + `<div class="d-lineage"><div class="d-lineage-h">Derived from</div>${lineage}</div>`
       + `</aside>`;
 
@@ -210,7 +228,8 @@ function renderChart(points, target, animate){
         + `<div class="d-scheds">`
         + d.schedules.map(s =>
             `<div class="d-sched">`
-            + `<div class="d-sched-cap"><span class="d-sched-name">${esc(s.name || "sample")}</span>`
+            + `<div class="d-sched-cap"><span class="d-sched-name">${esc(s.title || s.name || "sample")}</span>`
+            +   (s.title && s.name && s.title !== s.name ? `<span class="d-sched-id">${esc(s.name)}</span>` : "")
             +   `<span class="d-sched-lat">lateness ${esc(s.lateness)}</span></div>`
             + s.svg                                                    // already HTML (inline SVG)
             + `</div>`).join("")

@@ -1,0 +1,94 @@
+/* ============================================================================
+   The problem page — a kitchen scheduling brief, told plainly and shown, not
+   spelled out. Tokens + the shared header/nav live in base.css.
+   ========================================================================== */
+.wrap{max-width:66.67vw;margin:0 auto;padding:4px 0 64px;}
+
+/* ---- the failing-nights figure, centred in its own section --------------- */
+.fail-fig{margin:16px auto 0;max-width:760px;}
+.fail-fig img{display:block;width:100%;height:auto;padding:28px;background:#fcfbf2;
+              border:1px solid var(--rule);border-radius:2px;
+              box-shadow:0 2px 10px rgba(45,33,15,.13);}
+.fail-fig figcaption{font:italic 14px/1.5 var(--serif);color:var(--muted);text-align:center;
+                     margin-top:11px;}
+.fail-fig figcaption .x{color:var(--accent);font-style:normal;}
+.fail-fig--empty{display:flex;align-items:center;justify-content:center;text-align:center;
+                 min-height:280px;border:1px dashed var(--rule);border-radius:2px;
+                 color:var(--faint);font:italic 14px/1.6 var(--serif);background:#fcfbf2;}
+.fail-fig--empty code{font:12px/1.6 var(--mono);color:var(--muted);font-style:normal;}
+
+/* ---- hero: the question -------------------------------------------------- */
+.hero{margin:16px 0 4px;}
+.hero-q{font:400 31px/1.25 var(--serif);letter-spacing:-.01em;color:var(--ink);margin:0 0 16px;}
+.hero-sub{font-size:19px;line-height:1.55;color:var(--muted);max-width:58ch;margin:0;}
+.hero-sub em{font-style:italic;color:var(--ink);}
+
+/* ---- sections: small-caps accent labels, not heavy headings -------------- */
+.prob-section{margin-top:46px;}
+.prob-h{font:600 13px/1 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+        letter-spacing:.09em;color:var(--accent);margin:0 0 16px;padding-bottom:9px;
+        border-bottom:1px solid var(--rule);}
+.prose{font-size:18px;line-height:1.6;color:var(--ink);max-width:64ch;margin:0 0 4px;}
+.prose.set-off{margin-top:28px;}
+.prose a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;}
+.prose a:hover{border-bottom-color:var(--accent);}
+
+/* ---- the goal: one number ------------------------------------------------ */
+.goal{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 30px;}
+.goal-num{font:400 29px/1.1 var(--serif);color:var(--ink);white-space:nowrap;
+          font-variant-numeric:lining-nums;}
+.goal-arrow{color:var(--faint);margin:0 2px;}
+.goal-zero{color:var(--accent);font-size:40px;}
+.goal-def{flex:1 1 280px;font-size:16px;line-height:1.55;color:var(--muted);max-width:44ch;margin:0;}
+.formula{font:14px/1.6 var(--mono);color:var(--faint);margin:18px 0 0;}
+.formula .fx{color:var(--ink);}
+
+/* ---- what's fixed: the line at a glance (capacity pips) ------------------ */
+.line-cap{font:italic 14px/1.4 var(--serif);color:var(--faint);margin:12px 0 2px;}
+.line{margin-top:6px;border-top:1px solid var(--rule);}
+.line-row{display:grid;grid-template-columns:200px 84px 1fr;gap:18px;align-items:center;
+          padding:10px 0;border-bottom:1px solid var(--rule-soft);}
+.ln-name{font-size:17px;color:var(--ink);}
+.line-row--bn .ln-name{font-weight:600;}
+.ln-pips{display:flex;gap:6px;align-items:center;}
+.pip{width:11px;height:11px;border-radius:50%;background:var(--ink);display:inline-block;
+     flex:0 0 auto;}
+.pip--bn{background:var(--accent);}
+.pip--inf{width:auto;height:auto;background:none;border-radius:0;font:400 19px/1 var(--serif);
+          color:var(--faint);}
+.pip--legend{width:9px;height:9px;vertical-align:baseline;margin:0 1px;background:var(--muted);}
+.ln-note{font-size:15px;line-height:1.45;color:var(--muted);font-style:italic;}
+.bottleneck{display:inline-block;margin-left:10px;font:600 10px/1 var(--serif);
+            font-feature-settings:"smcp" 1;text-transform:uppercase;letter-spacing:.06em;
+            color:var(--accent);border:1px solid var(--accent);border-radius:2px;
+            padding:2px 5px;vertical-align:middle;}
+
+/* ---- the loop, as a cycle (inline SVG) ----------------------------------- */
+.cycle{display:block;width:100%;max-width:520px;height:auto;margin:6px auto 4px;}
+.carrow{fill:none;stroke:#8a857a;stroke-width:1.6;}
+.cnode{fill:var(--paper);stroke:var(--ink);stroke-width:1.3;}
+.cnum{fill:var(--ink);font:600 14px/1 var(--serif);font-variant-numeric:lining-nums;}
+.clabel{fill:var(--ink);font:600 15px/1 var(--serif);letter-spacing:.05em;}
+.csub{fill:var(--muted);font:italic 13px/1 var(--serif);}
+.ccenter{fill:var(--accent);font:600 12px/1 var(--serif);letter-spacing:.1em;text-anchor:middle;}
+.ccenter-sub{fill:var(--faint);font:italic 13px/1 var(--serif);text-anchor:middle;}
+.cycle-cap{font:italic 15px/1.55 var(--serif);color:var(--muted);text-align:center;
+           max-width:56ch;margin:6px auto 0;}
+
+/* ---- the service nights -------------------------------------------------- */
+.nights{margin-top:16px;display:grid;gap:18px 30px;
+        grid-template-columns:repeat(auto-fill,minmax(300px,1fr));}
+.night{border-left:2px solid var(--rule);padding:1px 0 1px 15px;}
+.night-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+         font:400 18px/1.25 var(--serif);color:var(--ink);}
+.night-tag{flex:0 0 auto;font:600 10px/1 var(--serif);font-feature-settings:"smcp" 1;
+           text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+           border:1px solid var(--rule);border-radius:2px;padding:3px 6px;white-space:nowrap;}
+.night-b{font-size:14px;line-height:1.55;color:var(--muted);margin-top:6px;}
+.nights.held .night{border-left-color:var(--accent);}
+.nights.held .night-tag{color:var(--accent);border-color:var(--accent);}
+
+@media (max-width:760px){
+  .line-row{grid-template-columns:1fr auto;gap:4px 12px;}
+  .ln-note{grid-column:1/-1;}
+}

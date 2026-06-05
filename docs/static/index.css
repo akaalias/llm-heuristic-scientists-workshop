@@ -109,6 +109,13 @@ tr.detail-row > td{background:#fcfbf2;border-bottom:1.5px solid var(--ink);paddi
 .d-v{color:var(--ink);font-variant-numeric:tabular-nums;text-align:right;}
 .d-v.bad{color:var(--accent);}
 
+/* run parameters — the exact CLI inputs for this experiment */
+.d-params{display:flex;flex-direction:column;gap:5px;font-size:13px;}
+.d-params .d-lineage-h{margin-bottom:2px;}
+.d-params .d-fact{align-items:baseline;}
+.d-params .d-k{flex:none;}
+.d-params .d-v{overflow-wrap:anywhere;}
+
 .d-lineage-h{font:600 11px/1.3 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
              letter-spacing:.06em;color:var(--faint);margin-bottom:7px;
              padding-bottom:6px;border-bottom:1px solid var(--rule-soft);}
@@ -141,10 +148,11 @@ pre.code .n{color:#3f6e6e;}                         /* numbers  */
 .d-cap{font:italic 12px/1.4 var(--serif);color:var(--faint);margin:0 0 8px;}
 .d-sched-h{margin-top:24px;}
 .d-scheds{display:flex;flex-direction:column;gap:20px;}
-.d-sched-cap{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 5px;}
+.d-sched-cap{display:flex;align-items:baseline;gap:10px;margin:0 0 5px;}
 .d-sched-name{font:600 11px/1.3 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
-              letter-spacing:.05em;color:var(--muted);}
-.d-sched-lat{font:13px/1 var(--serif);font-variant-numeric:lining-nums tabular-nums;color:var(--muted);}
+              letter-spacing:.05em;color:var(--ink);}
+.d-sched-id{font:11px/1.3 var(--mono);color:var(--faint);}
+.d-sched-lat{margin-left:auto;font:13px/1 var(--serif);font-variant-numeric:lining-nums tabular-nums;color:var(--muted);}
 .d-scheds svg.gantt{margin:0;}   /* the list gap controls spacing, not per-svg margin */
 svg.gantt{width:100%;height:auto;display:block;margin:0 0 22px;}
 svg.gantt text{font:11px/1 var(--serif);fill:var(--muted);}
