@@ -138,112 +138,60 @@
     </div>
   </section>
 
-  <!-- 2 · AUTO-PIVOT ON PATIENCE --------------------------------------------- -->
+  <!-- · NIFTY RESEARCH STRATEGIES (the levers, as a 2×2 grid) ---------------- -->
   <section class="prob-section">
-    <h2 class="prob-h">Pivoting on patience</h2>
-    <div class="approach">
-      <div class="approach-text">
-        <p class="prose">Left to only refine its current idea, the agent risks polishing itself into a
-        corner. So we give it a <span class="param">patience</span> — how many rounds it may go without
-        beating its best. Spend them, and the agent must <em>pivot</em>: drop the current line and propose a
-        genuinely different <span class="gr">groundrule</span>, every dead end already in front of it.</p>
-        <p class="prose">If pivots stop paying off too — a few in a row with no new best — a harder
-        breakout forces a wider jump. A simple guard against the two ways a search fails: rabbit-holes,
-        and converging too early. It's the part of the loop we lean on most.</p>
+    <h2 class="prob-h">Nifty research strategies</h2>
+    <div class="strategies">
+
+      <!-- pivoting on patience -->
+      <div class="strategy">
+        <h3 class="strategy-h">Pivoting on patience</h3>
+        <p class="prose">Give the agent a <span class="param">patience</span> — how many rounds it may go
+        without a new best. Spend it, and it must <em>pivot</em>: drop the current line for a genuinely
+        different <span class="gr">groundrule</span>. Our main guard against rabbit-holes.</p>
         <aside class="insight">
-          <p>Start patient, then close the window. A wide patience — <strong>10+ discarded
-          candidates</strong> — suits early, exploratory strokes. Once you're grinding percentage
-          points, a <strong>smaller window</strong> forces faster pivots.</p>
+          <p>Start patient, then close the window: a wide patience explores, a <strong>smaller
+          window</strong> forces faster pivots.</p>
         </aside>
       </div>
-      <div class="approach-fig">
-        <svg class="pivot" viewBox="0 0 460 344" role="img"
-             aria-label="The best-so-far score stepping down across two pivots toward the champion: each line refines until patience runs out, then pivots to a fresh approach">
-          <!-- range frame -->
-          <line class="pivot-axis" x1="46" y1="22" x2="46" y2="300"/>
-          <line class="pivot-axis" x1="46" y1="300" x2="446" y2="300"/>
-          <!-- best-so-far staircase: refine, hold flat across each pivot, drop again -->
-          <path class="pivot-best" d="M56,70 L88,104 L120,138 L224,138 L224,160 L260,186 L300,206 L374,206 L374,226 L404,252 L430,276"/>
-          <!-- the two pivots -->
-          <line class="pivot-pivot" x1="210" y1="30" x2="210" y2="300"/>
-          <text class="pivot-plbl" x="210" y="20">pivot</text>
-          <line class="pivot-pivot" x1="356" y1="30" x2="356" y2="300"/>
-          <text class="pivot-plbl" x="356" y="20">pivot</text>
-          <!-- discarded tries (no improvement → patience drains) -->
-          <circle class="pivot-miss" cx="142" cy="132" r="3"/>
-          <circle class="pivot-miss" cx="170" cy="135" r="3"/>
-          <circle class="pivot-miss" cx="196" cy="131" r="3"/>
-          <circle class="pivot-miss" cx="322" cy="201" r="3"/>
-          <circle class="pivot-miss" cx="344" cy="199" r="3"/>
-          <!-- new bests (kept) -->
-          <circle class="pivot-dot" cx="56"  cy="70"  r="3.6"/>
-          <circle class="pivot-dot" cx="88"  cy="104" r="3.6"/>
-          <circle class="pivot-dot" cx="120" cy="138" r="3.6"/>
-          <circle class="pivot-dot" cx="224" cy="160" r="3.6"/>
-          <circle class="pivot-dot" cx="260" cy="186" r="3.6"/>
-          <circle class="pivot-dot" cx="300" cy="206" r="3.6"/>
-          <circle class="pivot-dot" cx="374" cy="226" r="3.6"/>
-          <circle class="pivot-dot" cx="404" cy="252" r="3.6"/>
-          <circle class="pivot-dot" cx="430" cy="276" r="3.6"/>
-          <!-- champion -->
-          <circle class="pivot-champ" cx="430" cy="276" r="7.5"/>
-          <text class="pivot-champlbl" x="421" y="272" text-anchor="end">champion</text>
-          <!-- axis hints -->
-          <text class="pivot-axlbl" x="246" y="324" text-anchor="middle">rounds &#8594;</text>
-          <text class="pivot-axlbl" x="20" y="161" text-anchor="middle" transform="rotate(-90 20 161)">total wait</text>
-        </svg>
-        <p class="cycle-cap">Each line refines until patience runs out, then <span class="gr">pivots</span>;
-        the best-so-far steps down to the champion. Lower is better.</p>
+
+      <!-- runs that build on runs -->
+      <div class="strategy">
+        <h3 class="strategy-h">Runs that build on runs</h3>
+        <p class="prose">A search isn't one fixed run. Each new run inherits the <em>champion</em> — the
+        best <span class="gr">groundrule</span> so far — and climbs from there, while you change the
+        <span class="param">model</span>, the <span class="param">patience</span>, the
+        <span class="param">library</span> around it.</p>
+        <aside class="insight">
+          <p>Everything's a dial except the floor — each run builds on the champion, so the bar only
+          moves up.</p>
+        </aside>
       </div>
+
+      <!-- the library -->
+      <div class="strategy">
+        <h3 class="strategy-h">The library — inspiration, by hand</h3>
+        <p class="prose">The <span class="param">library</span> is an optional, human-written input —
+        notes, framings, even a personality handed to the agent before it thinks. It doesn't fix the
+        answer; it shapes the <em>frame</em> the search starts from.</p>
+        <aside class="insight">
+          <p>Different personas produced <strong>markedly different approaches</strong> to the same
+          problem.</p>
+        </aside>
+      </div>
+
+      <!-- run it on your own hardware -->
+      <div class="strategy">
+        <h3 class="strategy-h">Run it on your own hardware</h3>
+        <p class="prose">The loop talks to any OpenAI-compatible endpoint, so the proposing
+        <span class="param">model</span> can run locally — LM Studio, or anything serving the same API.
+        Point it at your own hardware and the search runs unmetered: no rate limits, no quota walls.</p>
+        <aside class="insight">
+          <p>Leave a patient search running overnight without watching a bill.</p>
+        </aside>
+      </div>
+
     </div>
-  </section>
-
-  <!-- 3 · SEQUENTIAL, BUILDING RUNS ------------------------------------------ -->
-  <section class="prob-section">
-    <h2 class="prob-h">Runs that build on runs</h2>
-    <p class="prose">A search needn't be one fixed run. Each new run inherits the <em>champion</em> — the
-    best <span class="gr">groundrule</span> so far — and climbs from there, while you change everything
-    around it: the <span class="param">iterations</span>, the <span class="param">model</span>, the
-    <span class="param">patience</span>, the <span class="param">library</span>.</p>
-    <p class="prose">So a search becomes deliberate chapters: a patient run on a strong model to stake
-    out territory, a tighter one to grind detail, a fresh model or library to break a plateau — each
-    standing on the last.</p>
-    <aside class="insight">
-      <p>Everything's a dial except the floor. A run can change the model, patience, library, or length
-      — but it always builds on the standing champion, so the bar only moves up.</p>
-    </aside>
-  </section>
-
-  <!-- 4 · THE LIBRARY -------------------------------------------------------- -->
-  <section class="prob-section">
-    <h2 class="prob-h">The library — inspiration, by hand</h2>
-    <p class="prose">The <span class="param">library</span> is an optional, human-written input: notes,
-    ideas, framings, even a personality handed to the agent before it thinks. It doesn't fix the answer
-    — it shapes the <em>mental frame</em> the agent searches from.</p>
-    <p class="prose">It's where a person's taste enters an otherwise autonomous loop — a small act of
-    curation that can send the search somewhere it would never have wandered.</p>
-    <aside class="insight">
-      <p>Different personalities, different science. Giving the agent different personas produced
-      <strong>markedly different approaches</strong> to the same problem — a space we think deserves far
-      more exploration.</p>
-    </aside>
-  </section>
-
-  <!-- 5 · LOCAL MODELS ------------------------------------------------------- -->
-  <section class="prob-section">
-    <h2 class="prob-h">Run it on your own hardware</h2>
-    <p class="prose">The loop talks to any OpenAI-compatible endpoint, so the proposing model can be a
-    local one — LM Studio, or anything serving the same API. Point it at your own hardware and the
-    search runs unmetered: no rate limits, no quota walls, no getting blocked mid-run. Leave a patient
-    search going overnight without watching a bill.</p>
-  </section>
-
-  <!-- · WHAT YOU GET (the deliverable) -------------------------------------- -->
-  <section class="prob-section">
-    <h2 class="prob-h">What you get</h2>
-    <p class="prose">One <span class="gr">groundrule</span> — a single line the expediter could
-    read off a card at the pass, something like <em>&ldquo;start whatever's blocking the busiest
-    station.&rdquo;</em></p>
   </section>
 
   <!-- · TRAINING & EVALUATION SCENARIOS (the battery it's scored against) ----- -->

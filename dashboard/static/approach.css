@@ -29,6 +29,17 @@
                  border-bottom:1px solid transparent;transition:border-color .12s;}
 .instrument-link:hover{border-bottom-color:var(--accent);}
 
+/* ---- the research strategies, as a 2×2 grid of levers -------------------- */
+/* each cell keeps the section's title + copy; the pivot cell carries its
+   figure stacked under the text. Cells size to their content (align:start). */
+.strategies{margin-top:26px;display:grid;grid-template-columns:1fr 1fr;gap:36px 56px;
+            align-items:start;}
+.strategy-h{font:400 21px/1.3 var(--serif);letter-spacing:-.01em;color:var(--ink);margin:0 0 12px;}
+.strategy .prose{font-size:16px;line-height:1.55;}
+.strategy .insight{margin:18px 0 2px;}
+.strategy .insight p{font-size:15px;}
+.strategy .approach-fig{margin-top:18px;max-width:none;}
+
 /* the closing line sits right under the divider — no big top gap. */
 .prob-section--flush{margin-top:14px;}
 
