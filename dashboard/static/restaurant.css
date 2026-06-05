@@ -2,10 +2,12 @@
    Restaurant one-pager — page-specific styles (tokens/header live in base.css).
    The public face of Maison Braise: lede, ratings, à la carte menu, and story.
    ========================================================================== */
+/* index-only: the nav bar sits above the framed column, aligned to its width. */
+body > .nav{max-width:66.67vw;margin:22px auto 0;padding:0;border-bottom:0;}
+
 /* index-only: a 10px rust border around the centred content column. The frame
-   becomes the centred column; header + wrap fill it. The nav is fixed in the
-   left gutter, so it stays outside the box. */
-.page-frame{max-width:66.67vw;margin:24px auto 48px;
+   becomes the centred column; header + wrap fill it. */
+.page-frame{max-width:66.67vw;margin:14px auto 48px;
             border:10px solid var(--accent);padding:0 40px;
             background:var(--paper);
             box-shadow:0 8px 32px rgba(45,33,15,.16);}
