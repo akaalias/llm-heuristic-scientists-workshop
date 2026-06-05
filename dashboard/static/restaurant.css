@@ -2,6 +2,16 @@
    Restaurant one-pager — page-specific styles (tokens/header live in base.css).
    The public face of Maison Braise: lede, ratings, à la carte menu, and story.
    ========================================================================== */
+/* index-only: a 10px rust border around the centred content column. The frame
+   becomes the centred column; header + wrap fill it. The nav is fixed in the
+   left gutter, so it stays outside the box. */
+.page-frame{max-width:66.67vw;margin:24px auto 48px;
+            border:10px solid var(--accent);padding:0 40px;
+            background:var(--paper);
+            box-shadow:0 8px 32px rgba(45,33,15,.16);}
+.page-frame .dash-head,
+.page-frame .wrap{max-width:none;margin:0;}
+
 .wrap{max-width:66.67vw;margin:0 auto;padding:4px 0 64px;}
 
 .welcome{margin:18px 0 30px;}
@@ -95,13 +105,18 @@
               letter-spacing:.01em;margin:0 0 16px;}
 .team{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
       gap:22px 30px;}
-.member{display:flex;gap:16px;border-left:2px solid var(--rule);padding:2px 0 2px 14px;}
-.m-body{flex:1 1 auto;min-width:0;}
-.m-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+/* card: avatar + name/role share a top row; the note and bio drop below at
+   full card width so the prose isn't squeezed into the column beside the photo. */
+.member{display:flex;flex-direction:column;border-left:2px solid var(--rule);padding:2px 0 2px 14px;}
+.m-head{display:flex;gap:16px;align-items:center;}
+.m-id{flex:1 1 auto;min-width:0;}
+/* name + year flow inline so "since …" tucks right after the name (a short
+   first name no longer pushes the year out to the far edge). */
 .m-name{font-size:19px;color:var(--ink);}
-.m-since{font:13px/1 var(--serif);font-variant-numeric:lining-nums;color:var(--faint);white-space:nowrap;}
+.m-since{font:13px/1 var(--serif);font-variant-numeric:lining-nums;color:var(--faint);
+         white-space:nowrap;margin-left:9px;}
 .m-role{font:italic 15px/1.3 var(--serif);color:var(--accent);margin-top:3px;}
-.m-note{font-size:14px;line-height:1.5;color:var(--muted);margin-top:6px;}
+.m-note{font-size:14px;line-height:1.5;color:var(--muted);margin-top:12px;}
 .m-bio{font-size:14px;line-height:1.55;color:var(--ink);margin-top:8px;}
 
 /* ---- visit / reserve ---------------------------------------------------- */

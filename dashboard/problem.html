@@ -9,10 +9,10 @@
 </head>
 <body>
 <header class="dash-head">
-  <div class="eyebrow">LLM Heuristic Scientists · the problem</div>
-  <h1>What we're solving</h1>
-  <p class="sub">A kitchen scheduling problem — and an AI that learns to crack it.</p>
-  <div class="nav"><a href="/">&larr; The restaurant</a><a href="/dashboard">Dashboard</a><a href="/grid">Schedule grid</a><a href="/lineage">Experiment lineage</a></div>
+  <div class="eyebrow">The Heuristic Kitchen · the problem</div>
+  <h1>The problem</h1>
+  <p class="sub">A kitchen scheduling problem — and why getting it right is hard.</p>
+  <!--NAV-->
 </header>
 <div class="wrap">
 
@@ -41,77 +41,16 @@
   <section class="prob-section">
     <h2 class="prob-h">What we can't change</h2>
     <p class="prose">We don't touch the kitchen, the recipes, or the concept — <!--NAME--> stays
-    exactly what it is. The only lever is <b>sequence</b>: the order we cook things in. This is
+    exactly what it is. The only lever is <em>sequence</em>: the order we cook things in. This is
     the line we have to work with —</p>
     <p class="line-cap">each <span class="pip pip--legend"></span> is one cook or pan working at once — the fewer, the tighter</p>
     <div class="line"><!--STATIONS--></div>
   </section>
 
-  <div class="shift">
-    <span class="shift-rule"></span>
-    <span class="shift-text">So &mdash; how do we find that <span class="gr">groundrule</span>?</span>
-    <span class="shift-rule"></span>
-  </div>
-
   <section class="prob-section">
-    <h2 class="prob-h">How the AI finds the groundrule</h2>
-    <svg class="cycle" viewBox="0 0 600 420" role="img"
-         aria-label="The loop: propose a groundrule, run it, score it, keep the best — repeating">
-      <defs>
-        <marker id="cyc-arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-          <path d="M0,0 L10,5 L0,10 z" fill="#8a857a"/>
-        </marker>
-      </defs>
-      <!-- clockwise arrows between the four nodes -->
-      <path class="carrow" marker-end="url(#cyc-arrow)" d="M346.8,99.1 A125,125 0 0 1 415.9,168.2"/>
-      <path class="carrow" marker-end="url(#cyc-arrow)" d="M415.9,261.8 A125,125 0 0 1 346.8,330.9"/>
-      <path class="carrow" marker-end="url(#cyc-arrow)" d="M253.2,330.9 A125,125 0 0 1 184.1,261.8"/>
-      <path class="carrow" marker-end="url(#cyc-arrow)" d="M184.1,168.2 A125,125 0 0 1 253.2,99.1"/>
-      <!-- centre -->
-      <text class="ccenter"     x="300" y="210">THE LOOP</text>
-      <text class="ccenter-sub" x="300" y="231">round after round</text>
-      <!-- 1 · PROPOSE (top) -->
-      <text class="clabel" x="300" y="50"  text-anchor="middle">PROPOSE</text>
-      <text class="csub"   x="300" y="67"  text-anchor="middle">a <tspan fill="#8c2f1f" font-variant="small-caps" font-style="normal">groundrule</tspan></text>
-      <circle class="cnode" cx="300" cy="90" r="15"/>
-      <text class="cnum" x="300" y="95" text-anchor="middle">1</text>
-      <!-- 2 · RUN (right) -->
-      <circle class="cnode" cx="425" cy="215" r="15"/>
-      <text class="cnum" x="425" y="220" text-anchor="middle">2</text>
-      <text class="clabel" x="448" y="211" text-anchor="start">RUN</text>
-      <text class="csub"   x="448" y="228" text-anchor="start">across every night</text>
-      <!-- 3 · SCORE (bottom) -->
-      <circle class="cnode" cx="300" cy="340" r="15"/>
-      <text class="cnum" x="300" y="345" text-anchor="middle">3</text>
-      <text class="clabel" x="300" y="374" text-anchor="middle">SCORE</text>
-      <text class="csub"   x="300" y="391" text-anchor="middle">the total wait</text>
-      <!-- 4 · KEEP (left) -->
-      <circle class="cnode" cx="175" cy="215" r="15"/>
-      <text class="cnum" x="175" y="220" text-anchor="middle">4</text>
-      <text class="clabel" x="152" y="211" text-anchor="end">KEEP</text>
-      <text class="csub"   x="152" y="228" text-anchor="end">the best, build on it</text>
-    </svg>
-    <p class="cycle-cap">Each round keeps only what beats the best so far, and builds the next <span class="gr">groundrule</span>
-    on it — climbing toward one that holds up on every night, not just an easy one.</p>
-  </section>
-
-  <section class="prob-section">
-    <h2 class="prob-h">The proving ground</h2>
-    <p class="prose">Each candidate faces a battery of service nights, every one leaning on a
-    different station — so a winning <span class="gr">groundrule</span> has to be good all round, not just on the easy nights.</p>
-    <div class="nights"><!--NIGHTS_TRAIN--></div>
-    <p class="prose set-off">Two more nights stay sealed. The kitchen never trains on them, so
-    they're the exam that proves a <span class="gr">groundrule</span> <em>generalised</em> rather than memorised.</p>
-    <div class="nights held"><!--NIGHTS_HELDOUT--></div>
-  </section>
-
-  <section class="prob-section">
-    <h2 class="prob-h">What you get</h2>
-    <p class="prose">Our <span class="gr">groundrule</span> — one line the expediter could read
-    off a card at the pass (something like <em>&ldquo;start whatever's blocking the busiest
-    station&rdquo;</em>). You can watch it get discovered on the <a href="/dashboard">dashboard</a>,
-    see each candidate's schedule on the <a href="/grid">grid</a>, and trace the winning idea's
-    ancestry on the <a href="/lineage">lineage</a> page.</p>
+    <h2 class="prob-h">How we solve it</h2>
+    <p class="prose">One simple <span class="gr">groundrule</span>, found by search rather than written
+    by hand. <a href="/approach">Our approach</a> lays out how.</p>
   </section>
 
 </div>

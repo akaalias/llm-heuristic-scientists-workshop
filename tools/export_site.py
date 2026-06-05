@@ -33,35 +33,53 @@ DEFAULT_OUT = ROOT / "docs"
 
 # (output filename, template path, render fn, passes a `target` arg)
 PAGES = [
-    ("index.html",     server.RESTO_TMPL,   server.render_restaurant_page, False),  # landing = restaurant
-    ("problem.html",   server.PROBLEM_TMPL, server.render_problem_page,    False),
-    ("dashboard.html", server.TEMPLATE,     server.render_page,            True),   # the run log
-    ("grid.html",      server.GRID_TMPL,    server.render_grid_page,       False),
-    ("lineage.html",   server.LINEAGE_TMPL, server.render_lineage_page,    True),
+    ("index.html",              server.RESTO_TMPL,   server.render_restaurant_page, False),  # landing = restaurant
+    ("problem.html",            server.PROBLEM_TMPL, server.render_problem_page,    False),
+    ("approach.html",           server.APPROACH_TMPL, server.render_approach_page,  False),
+    ("research-dashboard.html", server.TEMPLATE,     server.render_page,            True),   # the run log
+    ("research-grid.html",      server.GRID_TMPL,    server.render_grid_page,       False),
+    ("research-lineage.html",   server.LINEAGE_TMPL, server.render_lineage_page,    True),
 ]
+
+# old static filenames → their new home, so links/bookmarks to the pre-rename
+# Pages URLs (dashboard.html, …) still land. Written as tiny meta-refresh stubs.
+REDIRECT_STUBS = {
+    "dashboard.html": "research-dashboard.html",
+    "grid.html":      "research-grid.html",
+    "lineage.html":   "research-lineage.html",
+}
 
 
 def rewrite_html(s: str) -> str:
     """Server-absolute URLs → relative, so pages work under /<repo>/ on Pages
     and link to each other as static files."""
     return (s
-            .replace('="/static/',            '="static/')                  # css/js/img refs
-            .replace('href="/dashboard#exp=', 'href="dashboard.html#exp=')  # grid deep-links
-            .replace('href="/dashboard"',     'href="dashboard.html"')
-            .replace('href="/grid"',          'href="grid.html"')
-            .replace('href="/lineage"',       'href="lineage.html"')
-            .replace('href="/problem"',       'href="problem.html"')
-            .replace('href="/restaurant"',    'href="index.html"')          # restaurant = index
-            .replace('href="/"',              'href="index.html"'))
+            .replace('="/static/',                     '="static/')                          # css/js/img refs
+            .replace('href="/research-dashboard#exp=', 'href="research-dashboard.html#exp=')  # grid deep-links
+            .replace('href="/research-dashboard"',     'href="research-dashboard.html"')
+            .replace('href="/research-grid"',          'href="research-grid.html"')
+            .replace('href="/research-lineage"',       'href="research-lineage.html"')
+            .replace('href="/problem"',                'href="problem.html"')
+            .replace('href="/approach"',               'href="approach.html"')
+            .replace('href="/restaurant"',             'href="index.html"')                   # restaurant = index
+            .replace('href="/"',                       'href="index.html"'))
 
 
 def rewrite_js(s: str) -> str:
     """Patch the JS deep-link into the dashboard (lineage.js builds
-    `"/dashboard#exp=" + key`) so it targets the static dashboard page, and point
+    `"/research-dashboard#exp=" + key`) so it targets the static page, and point
     the row-expand at the baked details.json (there is no live server on Pages)."""
     return (s
-            .replace('"/dashboard#exp="', '"dashboard.html#exp="')
+            .replace('"/research-dashboard#exp="', '"research-dashboard.html#exp="')
             .replace('const DETAILS_URL = null;', 'const DETAILS_URL = "details.json";'))
+
+
+def redirect_stub(target: str) -> str:
+    """A minimal HTML page that forwards to `target` — for old, renamed URLs."""
+    return (f'<!doctype html><meta charset="utf-8">'
+            f'<meta http-equiv="refresh" content="0; url={target}">'
+            f'<link rel="canonical" href="{target}">'
+            f'<title>Moved</title><p>This page moved to <a href="{target}">{target}</a>.</p>')
 
 
 def main() -> None:
@@ -103,6 +121,11 @@ def main() -> None:
                 else render(tmpl.read_text(), args.csv))
         (out / name).write_text(rewrite_html(html))
         print(f"  ✓ {name}")
+
+    # 2b) forwarding stubs at the old, pre-rename filenames
+    for old, new in REDIRECT_STUBS.items():
+        (out / old).write_text(redirect_stub(new))
+        print(f"  ✓ {old} → {new} (redirect)")
 
     # 3) bake the row-expand experiment detail into a static JSON map, so the
     #    dashboard's expand works on Pages without the live `/detail` endpoint

@@ -33,9 +33,29 @@ body{
 .eyebrow{font:italic 16px/1 var(--serif);color:var(--accent);letter-spacing:.01em;margin-bottom:13px;}
 .dash-head h1{font-weight:400;font-size:34px;line-height:1.12;letter-spacing:-.01em;margin:0 0 8px;}
 .dash-head .sub{color:var(--muted);font-style:italic;font-size:18px;margin:0 0 10px;max-width:64ch;}
-.nav{font-size:15px;margin:0 0 14px;}
-.nav a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;}
+/* page navigation — pinned to the top-left corner, persistent on scroll. The
+   page body is centred (66.67vw), so the stacked links sit in the left gutter;
+   below 1100px the gutter shrinks, so the menu gets a quiet paper backing. */
+.nav{position:fixed;top:22px;left:24px;z-index:40;margin:0;
+     display:flex;flex-direction:column;gap:5px;
+     font:13.5px/1.25 var(--serif);}
+.nav a{color:var(--accent);text-decoration:none;white-space:nowrap;width:fit-content;
+       border-bottom:1px solid transparent;}
 .nav a:hover{border-bottom-color:var(--accent);}
-.nav a:not(:last-child)::after{content:" · ";color:var(--faint);border:0;}
+.nav .nav-sub{margin-left:15px;}    /* the research views, nested under "Our approach" */
+.nav .nav-here{color:var(--ink);cursor:default;}  /* current page — shown & marked active, not a link */
+@media (max-width:1100px){
+  .nav{background:rgba(255,255,248,.92);padding:8px 12px;border-radius:3px;
+       box-shadow:0 1px 6px rgba(45,33,15,.10);}
+}
+
+/* shared lead-in on the research pages — ties each back to the restaurant and the
+   problem. Outer box matches the header measure so its left edge lines up. */
+.research-intro{max-width:66.67vw;margin:0 auto;padding:2px 0 22px;}
+.research-intro p{margin:0;max-width:74ch;font:italic 16px/1.6 var(--serif);
+                  color:var(--muted);text-wrap:pretty;}
+.research-intro a{font-style:normal;color:var(--accent);text-decoration:none;
+                  border-bottom:1px solid transparent;}
+.research-intro a:hover{border-bottom-color:var(--accent);}
 
 .empty{padding:28px 0;color:var(--muted);font-style:italic;}

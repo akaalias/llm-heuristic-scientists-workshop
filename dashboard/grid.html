@@ -3,19 +3,40 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=1100">
-<title>Heuristic Discovery — Schedule Grid</title>
+<title>Research Candidate Grid — Heuristic Discovery</title>
 <link rel="stylesheet" href="/static/base.css">
 <link rel="stylesheet" href="/static/grid.css">
 </head>
 <body>
 <header class="dash-head">
-  <div class="eyebrow">LLM Heuristic Scientists · schedule grid</div>
-  <h1>Schedule grid</h1>
+  <div class="eyebrow">The Heuristic Kitchen · research candidate grid</div>
+  <h1>Research Candidate Grid</h1>
   <p class="sub"><!--SUB--></p>
-  <div class="nav"><a href="/">&larr; The restaurant</a><a href="/problem">The problem</a><a href="/dashboard">Dashboard</a><a href="/lineage">Experiment lineage</a></div>
+  <!--NAV-->
 </header>
+<!--RESEARCH_INTRO-->
 <div class="wrap">
   <!--GRID-->
 </div>
+<script>
+(function () {
+  let open = null;
+  function show(m) { m.hidden = false; document.body.style.overflow = "hidden"; open = m; }
+  function hide() { if (open) { open.hidden = true; document.body.style.overflow = ""; open = null; } }
+  document.addEventListener("click", function (e) {
+    const opener = e.target.closest("[data-ov-open]");
+    if (opener) { const m = document.getElementById(opener.dataset.ovOpen); if (m) show(m); return; }
+    if (e.target.closest("[data-ov-close]")) { hide(); return; }
+    const mode = e.target.closest("[data-ov-mode]");
+    if (mode) {
+      const bar = mode.parentNode, stage = bar.parentNode.parentNode.querySelector(".ov-stage");
+      bar.querySelectorAll("[data-ov-mode]").forEach(b => b.classList.toggle("is-on", b === mode));
+      stage.dataset.blend = mode.dataset.ovMode;
+      stage.style.setProperty("--ov-op", mode.dataset.op);
+    }
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") hide(); });
+})();
+</script>
 </body>
 </html>

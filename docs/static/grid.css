@@ -7,9 +7,76 @@
 .sample-h{font:400 23px/1.2 var(--serif);color:var(--ink);margin:0;padding-bottom:8px;
           border-bottom:1.5px solid var(--ink);display:flex;align-items:baseline;
           justify-content:space-between;font-variant-numeric:lining-nums;}
-.sample-h .cnt{font:italic 14px/1 var(--serif);color:var(--faint);}
+.sample-h .cnt{display:flex;align-items:baseline;gap:12px;}
+.sample-h .cnt-n{font:italic 14px/1 var(--serif);color:var(--faint);}
 .sample-title{display:flex;align-items:baseline;gap:11px;}
 .sample-id{font:12px/1 var(--mono);color:var(--faint);}
+.sample-desc{margin:11px 0 0;max-width:64ch;color:var(--muted);
+             font:italic 16px/1.55 var(--serif);}
+
+/* Overlay button — quiet, sits to the right of the experiment count. */
+.ov-btn{font:600 11px/1 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+        letter-spacing:.07em;color:var(--accent);background:none;cursor:pointer;
+        border:1px solid var(--rule);border-radius:2px;padding:5px 9px;transition:all .12s;}
+.ov-btn:hover{background:var(--accent);color:var(--paper);border-color:var(--accent);}
+
+/* Overlay modal — all of a scenario's thumbnails stacked, each at 1/N opacity,
+   blown up so faint clusters become legible. */
+.ov-modal[hidden]{display:none;}
+.ov-modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+          padding:5vh 4vw;}
+.ov-backdrop{position:absolute;inset:0;background:rgba(28,25,18,.34);}
+/* Tufte: the data is the object — minimal frame, a single hairline, soft lift. */
+.ov-dialog{position:relative;background:var(--paper);
+           box-shadow:0 10px 44px rgba(40,34,20,.20);max-width:min(960px,93vw);width:100%;
+           max-height:90vh;display:flex;flex-direction:column;}
+.ov-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;
+         padding:40px 88px 22px 60px;flex-wrap:wrap;}
+.ov-title{font:400 23px/1.2 var(--serif);color:var(--ink);}
+.ov-sub{margin-left:12px;font:italic 14px/1 var(--serif);color:var(--faint);}
+.ov-close{position:absolute;top:32px;right:40px;font:300 24px/1 var(--serif);color:var(--faint);
+          background:none;border:0;cursor:pointer;padding:4px 6px;}
+.ov-close:hover{color:var(--accent);}
+
+/* blend toggle — quiet small-caps words, the active one inked and underlined,
+   labelled so it reads as a control without a button box. */
+.ov-modes{display:flex;align-items:baseline;gap:16px;margin-left:auto;}
+.ov-modes::before{content:"blend";font:italic 13px/1 var(--serif);color:var(--faint);}
+.ov-mode{font:13px/1 var(--serif);font-feature-settings:"smcp" 1;text-transform:lowercase;
+         letter-spacing:.04em;color:var(--faint);background:none;cursor:pointer;
+         border:0;border-bottom:1px solid transparent;padding:0 0 2px;transition:color .12s;}
+.ov-mode:hover{color:var(--muted);}
+.ov-mode.is-on{color:var(--ink);border-bottom-color:var(--ink);}
+
+/* the plot sits on the bare page — no panel, no box, just the marks and a
+   single baseline (a Tufte range-frame). One grid cell stacks every layer. */
+.ov-stage{display:grid;margin:24px 60px 12px;overflow:auto;padding-top:24px;}
+.ov-head + .ov-stage{border-top:1px solid var(--rule);}
+.ov-note{margin:30px 60px 48px;max-width:62ch;color:var(--muted);
+         font:italic 15px/1.6 var(--serif);}
+.ov-note strong{font-style:normal;font-weight:600;color:var(--ink);}
+.ov-met{color:#4a7a3a;font-style:normal;}
+.ov-miss{color:#8c2f1f;font-style:normal;}
+.ov-layer,.ov-due-layer,.ov-axis{grid-area:1/1;}
+.ov-layer{opacity:var(--ov-op,1);}
+.ov-layer svg{width:100%;height:auto;display:block;}
+/* deadlines always composite Normal (never multiply) so the green/red stays
+   true; painted above the bars and fixed at the normal per-layer opacity. */
+.ov-due-layer{opacity:var(--ov-op-due,1);mix-blend-mode:normal;pointer-events:none;}
+.ov-due-layer svg{width:100%;height:auto;display:block;}
+/* the reference layer (station names + grid) is never blended and sits on top. */
+.ov-axis{mix-blend-mode:normal;pointer-events:none;}
+.ov-axis svg{width:100%;height:auto;display:block;}
+.ov-axis-svg text{font:11px/1 var(--serif);}
+.ov-gy{fill:var(--muted);font-feature-settings:"smcp" 1;text-transform:uppercase;letter-spacing:.04em;}
+.ov-gx{fill:var(--faint);font-variant-numeric:lining-nums;}
+.ov-axis-title{fill:var(--faint);font-style:italic;}
+.ov-gg{stroke:var(--rule-soft);stroke-width:1;}
+.ov-tick{stroke:var(--muted);stroke-width:1;}
+.ov-ga{stroke:var(--ink);stroke-width:1;}
+
+/* the blend mode just flips the bar layers' mix-blend-mode. */
+.ov-stage[data-blend="multiply"] .ov-layer{mix-blend-mode:multiply;}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
       gap:24px 28px;margin-top:20px;}
 .cell{display:block;text-decoration:none;color:inherit;}

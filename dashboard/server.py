@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """A tiny, dependency-free dashboard for discovery runs.
 
-Serves three Tufte-styled pages read from `heuristics/discovered/runs.csv`:
-the run log (`/`, table + live chart), the schedule grid (`/grid`), and the
-experiment lineage (`/lineage`). Shared CSS/JS live in `static/` and are
-served from `/static/`.
+Serves the research pages read from `heuristics/discovered/runs.csv`: the
+research dashboard (`/research-dashboard`, table + live chart), the research
+candidate grid (`/research-grid`), and the research experiment lineage
+(`/research-lineage`) — plus the restaurant (`/`) and the problem (`/problem`).
+Shared CSS/JS live in `static/` and are served from `/static/`.
 
 The run log updates itself: the server watches the CSV and pushes new rows
 over Server-Sent Events (the `/events` stream), so a new experiment shows up
@@ -44,6 +45,7 @@ GRID_TMPL   = HERE / "grid.html"
 LINEAGE_TMPL = HERE / "lineage.html"
 RESTO_TMPL  = HERE / "restaurant.html"
 PROBLEM_TMPL = HERE / "problem.html"
+APPROACH_TMPL = HERE / "approach.html"
 STATIC_DIR  = HERE / "static"          # shared CSS/JS, served from /static/
 DEFAULT_CSV = HERE.parent / "heuristics" / "discovered" / "runs.csv"
 
@@ -55,6 +57,14 @@ TEXT_SUFFIXES = {".css", ".js", ".svg", ".json"}   # binary assets get no charse
 POLL_S      = 1.0   # how often the SSE loop checks the CSV for changes
 PING_EVERY  = 10    # send an SSE comment every Nth idle poll (detects drops)
 
+# the research pages were renamed (/dashboard → /research-dashboard, etc.); 301
+# the old paths to the new so existing links and bookmarks keep working.
+OLD_ROUTE_REDIRECTS = {
+    "/dashboard": "/research-dashboard", "/dashboard.html": "/research-dashboard",
+    "/grid":      "/research-grid",      "/grid.html":      "/research-grid",
+    "/lineage":   "/research-lineage",   "/lineage.html":   "/research-lineage",
+}
+
 # (csv field, column header, css class for the cell). Order = display order.
 COLUMNS = [
     ("n",              "#",        "num"),
@@ -62,7 +72,7 @@ COLUMNS = [
     ("model",          "Model",    "mono"),
     ("library",        "Library",  "mono"),
     ("patience",       "Patience", "num"),
-    ("slug",           "Slug",     "mono"),
+    ("slug",           "Experiment", "mono"),
     ("total_lateness", "Lateness", "num"),
     ("status",         "Status",   ""),
 ]
@@ -465,6 +475,122 @@ def gantt_thumb(sched: dict) -> str:
             f'role="img" aria-label="schedule thumbnail">{"".join(g)}</svg>')
 
 
+# ---- overlay stage: many experiments stacked on ONE shared grid ------------
+# Geometry shared by the axis layer and every bar layer so they register
+# pixel-for-pixel. A left gutter (OV_L) holds the station names, drawn once.
+OV_W, OV_L, OV_R, OV_T, OV_B, OV_ROWH = 760, 104, 18, 10, 42, 20
+
+
+def overlay_geometry(scheds: list[dict]) -> tuple[list[str], dict[str, int], float]:
+    """The canonical layout the whole group shares: station-slot row labels, a
+    station→base-row map, and ONE horizon (the max across the group, so every
+    layer is drawn to the same time scale and bars actually line up)."""
+    stations = sorted({e["station"] for s in scheds for e in (s.get("entries") or [])})
+    maxslots: dict[str, int] = {}
+    horizon = 1.0
+    for s in scheds:
+        ents = s.get("entries") or []
+        horizon = max(horizon, s.get("horizon") or max((e["end"] for e in ents), default=1) or 1)
+        for st in stations:
+            sub = [e for e in ents if e["station"] == st]
+            if sub:
+                _so, n = _pack_slots(sub)
+                maxslots[st] = max(maxslots.get(st, 1), n)
+            maxslots.setdefault(st, 1)
+    labels, base = [], {}
+    for st in stations:
+        base[st] = len(labels)
+        n = maxslots[st]
+        labels += [f"{st} #{slot}" if n > 1 else st for slot in range(n)]
+    return labels, base, horizon
+
+
+def _ov_x(horizon: float):
+    x0, x1 = OV_L, OV_W - OV_R
+    return lambda t: x0 + (t / horizon) * (x1 - x0)
+
+
+def overlay_axis(labels: list[str], horizon: float) -> str:
+    """The single, un-blended reference layer: station names down the gutter,
+    faint time gridlines and a baseline. Sits atop the blended bar layers."""
+    n_rows = len(labels)
+    plot_bottom = OV_T + n_rows * OV_ROWH
+    H = plot_bottom + OV_B
+    x0, x1 = OV_L, OV_W - OV_R
+    xf = _ov_x(horizon)
+    g = []
+    # faint gridlines + a small tick below the baseline at each labelled time;
+    # numbers ride just under the ticks, the unit named once at the right.
+    for t in _gantt_ticks(horizon):
+        x = xf(t)
+        g.append(f'<line class="ov-gg" x1="{x:.1f}" y1="{OV_T}" x2="{x:.1f}" y2="{plot_bottom}"/>')
+        g.append(f'<line class="ov-tick" x1="{x:.1f}" y1="{plot_bottom}" x2="{x:.1f}" y2="{plot_bottom+4}"/>')
+        g.append(f'<text class="ov-gx" x="{x:.1f}" y="{plot_bottom+17:.1f}" text-anchor="middle">{_fmtnum(t)}</text>')
+    g.append(f'<text class="ov-axis-title" x="{x1:.1f}" y="{plot_bottom+33:.1f}" '
+             f'text-anchor="end">minutes from first seating</text>')
+    for y, label in enumerate(labels):
+        cy = OV_T + y * OV_ROWH
+        g.append(f'<text class="ov-gy" x="{OV_L-12}" y="{cy+OV_ROWH/2+3:.1f}" '
+                 f'text-anchor="end">{html.escape(label)}</text>')
+    g.append(f'<line class="ov-ga" x1="{x0}" y1="{plot_bottom}" x2="{x1}" y2="{plot_bottom}"/>')
+    return (f'<svg class="ov-axis-svg" viewBox="0 0 {OV_W} {H}" preserveAspectRatio="xMidYMid meet" '
+            f'aria-hidden="true">{"".join(g)}</svg>')
+
+
+# met / missed colours for the overlaid deadline lines (no ✓/× marks here —
+# the colour alone carries the outcome, and 46 stacked lines tell the story).
+OV_MET, OV_MISS = "#4a7a3a", "#8c2f1f"
+
+
+def overlay_bars(sched: dict, labels: list[str], base: dict[str, int], horizon: float) -> str:
+    """One experiment's bars, placed on the canonical rows at the shared time
+    scale — a bar-only layer meant to be stacked under a blend mode."""
+    entries = sched.get("entries") or []
+    H = OV_T + len(labels) * OV_ROWH + OV_B
+    xf = _ov_x(horizon)
+    color, pale = _order_palettes(entries)
+    barH = OV_ROWH - 8
+    g = []
+    for st in sorted({e["station"] for e in entries}):
+        sub = [e for e in entries if e["station"] == st]
+        slot_of, _n = _pack_slots(sub)
+        for j, e in enumerate(sub):
+            cy = OV_T + (base[st] + slot_of[j]) * OV_ROWH
+            bx = xf(e["start"])
+            bw = max(1.0, xf(e["end"]) - xf(e["start"]))
+            oid = _order_of(e["step"])
+            g.append(f'<rect x="{bx:.1f}" y="{cy+4:.1f}" width="{bw:.1f}" height="{barH}" rx="1.5" '
+                     f'fill="{pale[oid]}" stroke="{color[oid]}" stroke-width="0.75"/>')
+    return (f'<svg class="ov-bars-svg" viewBox="0 0 {OV_W} {H}" preserveAspectRatio="xMidYMid meet" '
+            f'aria-hidden="true">{"".join(g)}</svg>')
+
+
+def overlay_deadlines(sched: dict, labels: list[str], horizon: float) -> str:
+    """One experiment's order-deadline lines, coloured green (met) / red (late).
+    Kept in its OWN layer so it can always composite Normal — the green/red stays
+    legible whatever blend mode the bars use. Each order finishes at the last end
+    across its steps; green if that beat the due time, red if it ran late."""
+    entries = sched.get("entries") or []
+    plot_bottom = OV_T + len(labels) * OV_ROWH
+    H = plot_bottom + OV_B
+    xf = _ov_x(horizon)
+    finish: dict[int, float] = {}
+    for e in entries:
+        oid = _order_of(e["step"])
+        finish[oid] = max(finish.get(oid, 0.0), e["end"])
+    g = []
+    for o in (sched.get("orders") or []):
+        due = o.get("due")
+        if due is None:
+            continue
+        met = finish.get(o.get("id"), 0.0) <= due + 1e-9
+        x = xf(due)
+        g.append(f'<line class="ov-due" x1="{x:.1f}" y1="{OV_T}" x2="{x:.1f}" y2="{plot_bottom}" '
+                 f'stroke="{OV_MET if met else OV_MISS}" stroke-width="2" stroke-dasharray="4 3"/>')
+    return (f'<svg class="ov-due-svg" viewBox="0 0 {OV_W} {H}" preserveAspectRatio="xMidYMid meet" '
+            f'aria-hidden="true">{"".join(g)}</svg>')
+
+
 def _lat_key(v) -> float:
     f = _to_float(str(v))
     return f if f is not None else float("inf")
@@ -512,37 +638,59 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
     for name in order:
         items = sorted(groups[name], key=lambda rs: _lat_key(rs[1].get("lateness")))
         cells = []
-        layers = []
         n = len(items)
-        # equal share of full opacity, so n thumbnails sum to one opaque image —
-        # overlapping bars darken where many experiments agree (the clusters).
-        layer_op = 1.0 / n if n else 1.0
+        # all layers share ONE grid (canonical station rows + a common horizon)
+        # so bars register pixel-for-pixel and clusters emerge where they agree.
+        labels, base, horizon = overlay_geometry([s for _r, s in items])
+        bar_layers, due_layers = [], []
         for r, s in items:
             key = _row_key(r)
             title = r.get("title", "") or "Untitled"
             lat = s.get("lateness", "")
             cells.append(
-                f'<a class="cell" href="/dashboard#exp={quote(key)}" title="{html.escape(title)}">'
+                f'<a class="cell" href="/research-dashboard#exp={quote(key)}" title="{html.escape(title)}">'
                 f'<div class="cell-thumb">{gantt_thumb(s)}</div>'
                 f'<div class="cell-cap"><span class="cell-n">#{html.escape(r.get("n",""))}</span>'
                 f'<span class="cell-title">{html.escape(title)}</span>'
                 f'<span class="cell-lat">{html.escape(str(lat))}</span></div></a>')
-            layers.append(
-                f'<div class="ov-layer" style="opacity:{layer_op:.4f}">{gantt_thumb(s)}</div>')
+            bar_layers.append(f'<div class="ov-layer">{overlay_bars(s, labels, base, horizon)}</div>')
+            due_layers.append(f'<div class="ov-due-layer">{overlay_deadlines(s, labels, horizon)}</div>')
         nm_title = scenario_title(name)
         id_html = (f'<span class="sample-id">{html.escape(name)}</span>'
                    if nm_title != name else "")
         blurb = scenario_blurb(name)
         desc_html = (f'<p class="sample-desc">{html.escape(blurb)}</p>' if blurb else "")
         ov_id = "ov-" + re.sub(r"[^a-zA-Z0-9_-]", "-", name)
+        # the blend-mode toolbar — Photoshop-style layer styles to hunt for the
+        # most legible default. data-op is the per-layer opacity that mode wants.
+        modes = [
+            ("normal",   "Normal",     f"{1.0/n:.4f}" if n else "1"),
+            ("multiply", "Multiply",   "0.55"),
+        ]
+        btns = "".join(
+            f'<button class="ov-mode{" is-on" if i == 0 else ""}" type="button" '
+            f'data-ov-mode="{m}" data-op="{op}">{html.escape(lbl)}</button>'
+            for i, (m, lbl, op) in enumerate(modes))
+        toolbar = f'<div class="ov-modes" role="group" aria-label="Blend mode">{btns}</div>'
         modal = (
             f'<div class="ov-modal" id="{ov_id}" hidden>'
             f'<div class="ov-backdrop" data-ov-close></div>'
             f'<div class="ov-dialog" role="dialog" aria-modal="true" aria-label="Overlay of {html.escape(nm_title)} schedules">'
             f'<header class="ov-head"><div><span class="ov-title">{html.escape(nm_title)}</span>'
-            f'<span class="ov-sub">all {n} experiments, overlaid at {layer_op*100:.1f}% each</span></div>'
+            f'<span class="ov-sub">all {n} experiments, overlaid</span></div>'
+            f'{toolbar}'
             f'<button class="ov-close" type="button" data-ov-close aria-label="Close">&times;</button></header>'
-            f'<div class="ov-stage">{"".join(layers)}</div></div></div>')
+            f'<div class="ov-stage" data-blend="normal" style="--ov-op:{1.0/n:.4f};--ov-op-due:{1.0/n:.4f}">'
+            f'{"".join(bar_layers)}'
+            f'{"".join(due_layers)}'
+            f'<div class="ov-axis">{overlay_axis(labels, horizon)}</div>'
+            f'</div>'
+            f'<p class="ov-note">All {n} schedules for this night on one grid: where many '
+            f'agree the bars stack into solid blocks, lone choices stay faint. Each order&rsquo;s '
+            f'deadline is a dashed line &mdash; <span class="ov-met">green where met</span>, '
+            f'<span class="ov-miss">red where late</span>. <strong>Multiply</strong> drives the '
+            f'consensus toward black.</p>'
+            f'</div></div>')
         sections.append(
             f'<section class="sample"><h2 class="sample-h">'
             f'<span class="sample-title">{html.escape(nm_title)}{id_html}</span>'
@@ -609,14 +757,58 @@ def experiment_detail(rows: list[dict], key: str, csv_dir: Path) -> dict | None:
     }
 
 
+def research_intro() -> str:
+    """Shared lead-in for the three research pages (dashboard, candidate grid,
+    experiment lineage): what they are, and a link back to the restaurant and the
+    problem they exist to solve. Injected into each page's <!--RESEARCH_INTRO-->
+    slot so the framing reads identically across all three."""
+    name = html.escape(RESTAURANT["name"])
+    return (
+        '<div class="research-intro"><p>'
+        'These pages follow an autonomous AI as it searches for a single rule to run '
+        f'the kitchen at <a href="/">{name}</a> — which dish to start next so every '
+        'table is served on time. The kitchen it works within, and why getting that '
+        'order right is hard, are laid out in <a href="/problem">the problem</a>.'
+        '</p></div>'
+    )
+
+
+# the shared top-left navigation, in display order: (page key, href, label,
+# indented under the approach?). Each page injects render_nav(<its key>) into its
+# <!--NAV--> slot — one source of truth, so a label or link changes in one place.
+NAV_ITEMS = [
+    ("restaurant", "/",                   "The restaurant",              False),
+    ("problem",    "/problem",            "The problem",                 False),
+    ("approach",   "/approach",           "Our approach",                False),
+    ("dashboard",  "/research-dashboard", "Research Dashboard",          True),
+    ("grid",       "/research-grid",      "Research Candidate Grid",     True),
+    ("lineage",    "/research-lineage",   "Research Experiment Lineage", True),
+]
+
+
+def render_nav(current: str) -> str:
+    """The shared nav. `current` is the active page's key (see NAV_ITEMS): it
+    renders as a non-link, marked active, so it stays visible instead of
+    vanishing; the research views are indented under 'Our approach'."""
+    out = []
+    for key, href, label, sub in NAV_ITEMS:
+        cls = " ".join(c for c, on in (("nav-sub", sub), ("nav-here", key == current)) if on)
+        attr = f' class="{cls}"' if cls else ""
+        out.append(f'<span{attr}>{html.escape(label)}</span>' if key == current
+                   else f'<a{attr} href="{href}">{html.escape(label)}</a>')
+    return f'<div class="nav">{"".join(out)}</div>'
+
+
 def render_page(template: str, csv_path: Path, target: float) -> str:
     rows = load_rows(csv_path)
     sub, updated = meta(rows)
     chart = json.dumps({"points": chart_data(rows), "target": target})
     return (template
+            .replace("<!--NAV-->", render_nav("dashboard"))
             .replace("<!--TABLE-->", render_table(rows))
             .replace("<!--SUB-->", html.escape(sub))
             .replace("<!--UPDATED-->", html.escape(updated))
+            .replace("<!--RESEARCH_INTRO-->", research_intro())
             .replace("<!--CHARTDATA-->", chart))
 
 
@@ -648,9 +840,11 @@ def render_lineage_page(template: str, csv_path: Path, target: float) -> str:
     n = len(data["nodes"])
     sub = (f"{n} experiment{'' if n == 1 else 's'}, left → right in discovery order; "
            "each arc links an experiment to the parent it built on. Hover to trace its "
-           "ancestry back to the root; click to open it on the dashboard." if n else "No experiments yet.")
+           "ancestry back to the root; click to open it on the research dashboard." if n else "No experiments yet.")
     return (template
+            .replace("<!--NAV-->", render_nav("lineage"))
             .replace("<!--LINEAGEDATA-->", json.dumps(data))
+            .replace("<!--RESEARCH_INTRO-->", research_intro())
             .replace("<!--SUB-->", html.escape(sub)))
 
 
@@ -787,10 +981,12 @@ def render_team(people: list[dict], sides: list[str], exclude: set[str] | None =
         since = f'<span class="m-since">since {html.escape(str(p["since"]))}</span>' if p.get("since") else ""
         note  = f'<div class="m-note">{html.escape(p["note"])}</div>' if p.get("note") else ""
         bio   = f'<div class="m-bio">{html.escape(p["bio"])}</div>' if p.get("bio") else ""
-        return (f'<div class="member">{avatar(p.get("name",""), "avatar")}'
-                f'<div class="m-body"><div class="m-top">'
+        return (f'<div class="member">'
+                f'<div class="m-head">{avatar(p.get("name",""), "avatar")}'
+                f'<div class="m-id"><div class="m-top">'
                 f'<span class="m-name">{html.escape(p.get("name",""))}</span>{since}</div>'
-                f'<div class="m-role">{html.escape(p.get("role",""))}</div>{note}{bio}</div></div>')
+                f'<div class="m-role">{html.escape(p.get("role",""))}</div></div></div>'
+                f'{note}{bio}</div>')
 
     people = [p for p in people if p.get("name") not in exclude]
     ordered = sides + [s for s in dict.fromkeys(p.get("side", "") for p in people) if s and s not in sides]
@@ -867,6 +1063,7 @@ def render_restaurant_page(template: str, csv_path: Path) -> str:
     r = RESTAURANT
     loc = r.get("location", {})
     return (template
+            .replace("<!--NAV-->",         render_nav("restaurant"))
             .replace("<!--NAME-->",        html.escape(r["name"]))
             .replace("<!--STYLE-->",       html.escape(r["style"]))
             .replace("<!--TAGLINE-->",     html.escape(r["tagline"]))
@@ -967,9 +1164,18 @@ def render_problem_page(template: str, csv_path: Path) -> str:
     """The plain-English 'what we're solving' page. csv_path is unused (the page
     is descriptive only) but kept to match serve_static_page's contract."""
     return (template
+            .replace("<!--NAV-->",            render_nav("problem"))
             .replace("<!--NAME-->",           html.escape(RESTAURANT["name"]))
             .replace("<!--STATIONS-->",       render_stations(STATION_CAPACITY))
-            .replace("<!--FAILING_FIG-->",    failing_figure())
+            .replace("<!--FAILING_FIG-->",    failing_figure()))
+
+
+def render_approach_page(template: str, csv_path: Path) -> str:
+    """The 'our approach' page: the autoresearch loop and what makes it tick.
+    Descriptive only — csv_path is unused but kept for the render contract."""
+    return (template
+            .replace("<!--NAV-->",            render_nav("approach"))
+            .replace("<!--NAME-->",           html.escape(RESTAURANT["name"]))
             .replace("<!--NIGHTS_TRAIN-->",   render_nights(TRAINING_BATTERY))
             .replace("<!--NIGHTS_HELDOUT-->", render_nights([HIDDEN_TEST, STRESS])))
 
@@ -979,10 +1185,12 @@ def render_grid_page(template: str, csv_path: Path) -> str:
     n = sum(1 for r in rows if schedule_samples(load_schedule(csv_path.parent, r.get("file", ""))))
     sub = (f"{n} experiment{'' if n == 1 else 's'} across the training battery — one "
            "section per sample, each showing every experiment's schedule on it (best "
-           "on that sample first). Click any to open it on the dashboard."
+           "on that sample first). Click any to open it on the research dashboard."
            if n else "No schedules yet.")
     return (template
+            .replace("<!--NAV-->", render_nav("grid"))
             .replace("<!--GRID-->", render_grid(rows, csv_path.parent))
+            .replace("<!--RESEARCH_INTRO-->", research_intro())
             .replace("<!--SUB-->", html.escape(sub)))
 
 
@@ -1007,16 +1215,20 @@ class Handler(BaseHTTPRequestHandler):
             self.serve_detail()
         elif self.path.startswith("/static/"):
             self.serve_static_asset()
-        elif self.path in ("/grid", "/grid.html"):
+        elif self.path in ("/research-grid", "/research-grid.html"):
             self.serve_static_page(GRID_TMPL, render_grid_page)
-        elif self.path in ("/lineage", "/lineage.html"):
+        elif self.path in ("/research-lineage", "/research-lineage.html"):
             self.serve_static_page(LINEAGE_TMPL, render_lineage_page, with_target=True)
         elif self.path in ("/problem", "/problem.html"):
             self.serve_static_page(PROBLEM_TMPL, render_problem_page)
-        elif self.path in ("/dashboard", "/dashboard.html"):
+        elif self.path in ("/approach", "/approach.html"):
+            self.serve_static_page(APPROACH_TMPL, render_approach_page)
+        elif self.path in ("/research-dashboard", "/research-dashboard.html"):
             self.serve_static_page(TEMPLATE, render_page, with_target=True)   # the run log
         elif self.path in ("/", "/index.html", "/restaurant", "/restaurant.html"):
             self.serve_static_page(RESTO_TMPL, render_restaurant_page)        # restaurant = home
+        elif self.path in OLD_ROUTE_REDIRECTS:
+            self.send_redirect(OLD_ROUTE_REDIRECTS[self.path])                # keep old links alive
         else:
             self.send_error(404)
 
@@ -1028,6 +1240,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", cache)
         self.end_headers()
         self.wfile.write(body)
+
+    def send_redirect(self, location: str):
+        """301 to `location` — used to forward the old route names to the new."""
+        self.send_response(301)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def serve_static_page(self, tmpl, render, with_target=False):
         try:

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1100">
+<title>Our approach — Le Petit Renard</title>
+<link rel="stylesheet" href="static/base.css">
+<link rel="stylesheet" href="static/problem.css">
+<link rel="stylesheet" href="static/approach.css">
+</head>
+<body>
+<header class="dash-head">
+  <div class="eyebrow">The Heuristic Kitchen · our approach</div>
+  <h1>Our approach</h1>
+  <p class="sub">How an autonomous agent searches for the groundrule — and what we think makes the loop different.</p>
+  <div class="nav"><a href="index.html">The restaurant</a><a href="problem.html">The problem</a><span class="nav-here">Our approach</span><a class="nav-sub" href="research-dashboard.html">Research Dashboard</a><a class="nav-sub" href="research-grid.html">Research Candidate Grid</a><a class="nav-sub" href="research-lineage.html">Research Experiment Lineage</a></div>
+</header>
+<div class="wrap">
+
+  <section class="hero">
+    <p class="hero-q">We don't write the rule.<br>We teach an agent to find it.</p>
+    <p class="hero-sub">Finding the best <span class="gr">groundrule</span> for Le Petit Renard means searching a
+    vast space of possible rules. We hand that search to an autonomous agent: it proposes, tests, and
+    keeps what works — on its own. Below: the loop, and the ideas that make it go further.</p>
+  </section>
+
+  <!-- 1 · THE LOOP (moved from the problem page) ------------------------------ -->
+  <section class="prob-section">
+    <h2 class="prob-h">The autoresearch loop</h2>
+    <div class="approach">
+      <div class="approach-text">
+        <p class="prose">We don't hand-write the <span class="gr">groundrule</span>. An agent runs an
+        <a href="https://github.com/karpathy/autoresearch">autoresearch loop</a>: read what's been
+        tried, propose a rule, test it on every night, score it, keep it only if it beats the best —
+        then go again, on its own. It's the agentic setup Andrej Karpathy points to as where AI is
+        heading.</p>
+        <p class="prose"><strong>Two roles, split clean.</strong> The <em>agent</em> owns the loop and
+        runs it autonomously. <em>We</em> supervise from outside: set the levers — <span class="param">patience</span>,
+        <span class="param">model</span>, <span class="param">library</span> — curate the inspiration,
+        and decide when to pivot or start a fresh run.</p>
+      </div>
+      <div class="approach-cycle">
+    <svg class="cycle" viewBox="0 0 640 420" role="img"
+         aria-label="The loop: an agent proposes a groundrule, runs it, scores it, keeps the best — repeating, while a human supervisor steers from outside">
+      <defs>
+        <marker id="cyc-arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#8a857a"/>
+        </marker>
+        <marker id="cyc-arrow-h" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#8c2f1f"/>
+        </marker>
+      </defs>
+      <!-- clockwise arrows between the four nodes -->
+      <path class="carrow" marker-end="url(#cyc-arrow)" d="M346.8,99.1 A125,125 0 0 1 415.9,168.2"/>
+      <path class="carrow" marker-end="url(#cyc-arrow)" d="M415.9,261.8 A125,125 0 0 1 346.8,330.9"/>
+      <path class="carrow" marker-end="url(#cyc-arrow)" d="M253.2,330.9 A125,125 0 0 1 184.1,261.8"/>
+      <path class="carrow" marker-end="url(#cyc-arrow)" d="M184.1,168.2 A125,125 0 0 1 253.2,99.1"/>
+      <!-- centre -->
+      <text class="ccenter"     x="300" y="210">THE LOOP</text>
+      <text class="ccenter-sub" x="300" y="231">round after round</text>
+      <!-- 1 · PROPOSE (top) -->
+      <text class="clabel" x="300" y="50"  text-anchor="middle">PROPOSE</text>
+      <text class="csub"   x="300" y="67"  text-anchor="middle">a <tspan fill="#8c2f1f" font-variant="small-caps" font-style="normal">groundrule</tspan></text>
+      <circle class="cnode" cx="300" cy="90" r="15"/>
+      <text class="cnum" x="300" y="95" text-anchor="middle">1</text>
+      <!-- 2 · RUN (right) -->
+      <circle class="cnode" cx="425" cy="215" r="15"/>
+      <text class="cnum" x="425" y="220" text-anchor="middle">2</text>
+      <text class="clabel" x="448" y="211" text-anchor="start">RUN</text>
+      <text class="csub"   x="448" y="228" text-anchor="start">across every night</text>
+      <!-- 3 · SCORE (bottom) -->
+      <circle class="cnode" cx="300" cy="340" r="15"/>
+      <text class="cnum" x="300" y="345" text-anchor="middle">3</text>
+      <text class="clabel" x="300" y="374" text-anchor="middle">SCORE</text>
+      <text class="csub"   x="300" y="391" text-anchor="middle">the total wait</text>
+      <!-- 4 · KEEP (left) -->
+      <circle class="cnode" cx="175" cy="215" r="15"/>
+      <text class="cnum" x="175" y="220" text-anchor="middle">4</text>
+      <text class="clabel" x="152" y="211" text-anchor="end">KEEP</text>
+      <text class="csub"   x="152" y="228" text-anchor="end">the best, build on it</text>
+      <!-- the human supervisor: steers from outside, into PROPOSE — routed high
+           on the right so it never crosses the loop's own arrows -->
+      <text class="chuman-lbl" x="632" y="58" text-anchor="end">HUMAN SUPERVISOR</text>
+      <text class="chuman-sub" x="632" y="76" text-anchor="end">sets the levers,</text>
+      <text class="chuman-sub" x="632" y="92" text-anchor="end">curates the inspiration</text>
+      <circle class="chuman" cx="505" cy="75" r="5"/>
+      <path class="carrow-h" marker-end="url(#cyc-arrow-h)" d="M505,75 C436,82 374,88 316,84"/>
+    </svg>
+        <p class="cycle-cap">Each round keeps only what beats the best so far, and builds the next
+        <span class="gr">groundrule</span> on it.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- · THE PROVING GROUND (the battery it's scored against) ----------------- -->
+  <section class="prob-section">
+    <h2 class="prob-h">The proving ground</h2>
+    <p class="prose">Each candidate faces a battery of service nights, every one leaning on a
+    different station — so a winning <span class="gr">groundrule</span> has to be good all round, not just on the easy nights.</p>
+    <div class="nights"><div class="night"><div class="night-h"><span>The House Service</span><span class="night-tag">Grill</span></div><div class="night-b">The doors open on a quiet Tuesday and the room fills gently. Two tables order the moment they sit — a burger and fries, a steak and salad — and two more drift in over the next ten minutes. Easy tickets on their own, except two burgers and a steak are all bound for Priya&#x27;s single grill.</div></div><div class="night"><div class="night-h"><span>The Early Rush</span><span class="night-tag">Fryer &amp; cold</span></div><div class="night-b">The first Seaport crowd piles in off the bridge wanting something quick before the show — baskets of fries, bowls of the day&#x27;s soup, a salad to share. Light on the grill, but the fryer never stops and Marco&#x27;s range is three pots deep, every ticket on a short fuse.</div></div><div class="night"><div class="night-h"><span>The Grill Jam</span><span class="night-tag">Grill</span></div><div class="night-b">A small table that hits the grill hard. Two steaks and two burgers land almost on top of each other — four cuts of meat queued at a single fire while the salad and fries wait on the cold side. Mis-order Priya&#x27;s grill and every plate lands late.</div></div><div class="night"><div class="night-h"><span>The Range Run</span><span class="night-tag">Range</span></div><div class="night-b">A cold, wet night and the whole room wants comfort: pasta after pasta, the day&#x27;s soup by the bowl. Marco&#x27;s single range is the whole game — five pots deep with barely a burner to spare — while the odd salad and basket of fries slip by on the side.</div></div><div class="night"><div class="night-h"><span>The Late Seating</span><span class="night-tag">Both walls</span></div><div class="night-b">The last tables of the night sit down late and still want to eat fast. Grill and range are both buried — steaks and burgers stacked on one side, pasta and soup on the other — and every clock is short. Both bottlenecks bite at once; there&#x27;s no slack left to hide a bad call.</div></div></div>
+    <p class="prose set-off">Two more nights stay sealed. The kitchen never trains on them, so
+    they're the exam that proves a <span class="gr">groundrule</span> <em>generalised</em> rather than memorised.</p>
+    <div class="nights held"><div class="night"><div class="night-h"><span>The Unseen Cover</span><span class="night-tag">Mixed</span></div><div class="night-b">A held-out Thursday the kitchen never rehearsed on: five varied tables, a mix of grill, range and cold orders trickling in over ten minutes, with one heavy three-dish ticket buried in the middle. The true test of whether a method generalises or merely memorised the nights it trained on.</div></div><div class="night"><div class="night-h"><span>The Saturday Crush</span><span class="night-tag">Grill</span></div><div class="night-b">Saturday at full tilt, the long five-till-midnight window at its peak. A packed room all wanting red meat — steaks and burgers stacked on nearly every ticket with the tightest deadlines of the week. The grill is swamped, and any cook who ignores the bottleneck buries the whole service.</div></div></div>
+  </section>
+
+  <!-- 2 · AUTO-PIVOT ON PATIENCE --------------------------------------------- -->
+  <section class="prob-section">
+    <h2 class="prob-h">Pivoting on patience</h2>
+    <div class="approach">
+      <div class="approach-text">
+        <p class="prose">Left to only refine its current idea, the agent risks polishing itself into a
+        corner. So we give it a <span class="param">patience</span> — how many rounds it may go without
+        beating its best. Spend them, and the agent must <em>pivot</em>: drop the current line and propose a
+        genuinely different <span class="gr">groundrule</span>, every dead end already in front of it.</p>
+        <p class="prose">If pivots stop paying off too — a few in a row with no new best — a harder
+        breakout forces a wider jump. A simple guard against the two ways a search fails: rabbit-holes,
+        and converging too early. It's the part of the loop we lean on most.</p>
+        <aside class="insight">
+          <p>Start patient, then close the window. A wide patience — <strong>10+ discarded
+          candidates</strong> — suits early, exploratory strokes. Once you're grinding percentage
+          points, a <strong>smaller window</strong> forces faster pivots.</p>
+        </aside>
+      </div>
+      <div class="approach-fig">
+        <svg class="pivot" viewBox="0 0 460 344" role="img"
+             aria-label="The best-so-far score stepping down across two pivots toward the champion: each line refines until patience runs out, then pivots to a fresh approach">
+          <!-- range frame -->
+          <line class="pivot-axis" x1="46" y1="22" x2="46" y2="300"/>
+          <line class="pivot-axis" x1="46" y1="300" x2="446" y2="300"/>
+          <!-- best-so-far staircase: refine, hold flat across each pivot, drop again -->
+          <path class="pivot-best" d="M56,70 L88,104 L120,138 L224,138 L224,160 L260,186 L300,206 L374,206 L374,226 L404,252 L430,276"/>
+          <!-- the two pivots -->
+          <line class="pivot-pivot" x1="210" y1="30" x2="210" y2="300"/>
+          <text class="pivot-plbl" x="210" y="20">pivot</text>
+          <line class="pivot-pivot" x1="356" y1="30" x2="356" y2="300"/>
+          <text class="pivot-plbl" x="356" y="20">pivot</text>
+          <!-- discarded tries (no improvement → patience drains) -->
+          <circle class="pivot-miss" cx="142" cy="132" r="3"/>
+          <circle class="pivot-miss" cx="170" cy="135" r="3"/>
+          <circle class="pivot-miss" cx="196" cy="131" r="3"/>
+          <circle class="pivot-miss" cx="322" cy="201" r="3"/>
+          <circle class="pivot-miss" cx="344" cy="199" r="3"/>
+          <!-- new bests (kept) -->
+          <circle class="pivot-dot" cx="56"  cy="70"  r="3.6"/>
+          <circle class="pivot-dot" cx="88"  cy="104" r="3.6"/>
+          <circle class="pivot-dot" cx="120" cy="138" r="3.6"/>
+          <circle class="pivot-dot" cx="224" cy="160" r="3.6"/>
+          <circle class="pivot-dot" cx="260" cy="186" r="3.6"/>
+          <circle class="pivot-dot" cx="300" cy="206" r="3.6"/>
+          <circle class="pivot-dot" cx="374" cy="226" r="3.6"/>
+          <circle class="pivot-dot" cx="404" cy="252" r="3.6"/>
+          <circle class="pivot-dot" cx="430" cy="276" r="3.6"/>
+          <!-- champion -->
+          <circle class="pivot-champ" cx="430" cy="276" r="7.5"/>
+          <text class="pivot-champlbl" x="421" y="272" text-anchor="end">champion</text>
+          <!-- axis hints -->
+          <text class="pivot-axlbl" x="246" y="324" text-anchor="middle">rounds &#8594;</text>
+          <text class="pivot-axlbl" x="20" y="161" text-anchor="middle" transform="rotate(-90 20 161)">total wait</text>
+        </svg>
+        <p class="cycle-cap">Each line refines until patience runs out, then <span class="gr">pivots</span>;
+        the best-so-far steps down to the champion. Lower is better.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 · SEQUENTIAL, BUILDING RUNS ------------------------------------------ -->
+  <section class="prob-section">
+    <h2 class="prob-h">Runs that build on runs</h2>
+    <p class="prose">A search needn't be one fixed run. Each new run inherits the <em>champion</em> — the
+    best <span class="gr">groundrule</span> so far — and climbs from there, while you change everything
+    around it: the <span class="param">iterations</span>, the <span class="param">model</span>, the
+    <span class="param">patience</span>, the <span class="param">library</span>.</p>
+    <p class="prose">So a search becomes deliberate chapters: a patient run on a strong model to stake
+    out territory, a tighter one to grind detail, a fresh model or library to break a plateau — each
+    standing on the last.</p>
+    <aside class="insight">
+      <p>Everything's a dial except the floor. A run can change the model, patience, library, or length
+      — but it always builds on the standing champion, so the bar only moves up.</p>
+    </aside>
+  </section>
+
+  <!-- 4 · THE LIBRARY -------------------------------------------------------- -->
+  <section class="prob-section">
+    <h2 class="prob-h">The library — inspiration, by hand</h2>
+    <p class="prose">The <span class="param">library</span> is an optional, human-written input: notes,
+    ideas, framings, even a personality handed to the agent before it thinks. It doesn't fix the answer
+    — it shapes the <em>mental frame</em> the agent searches from.</p>
+    <p class="prose">It's where a person's taste enters an otherwise autonomous loop — a small act of
+    curation that can send the search somewhere it would never have wandered.</p>
+    <aside class="insight">
+      <p>Different personalities, different science. Giving the agent different personas produced
+      <strong>markedly different approaches</strong> to the same problem — a space we think deserves far
+      more exploration.</p>
+    </aside>
+  </section>
+
+  <!-- 5 · LOCAL MODELS ------------------------------------------------------- -->
+  <section class="prob-section">
+    <h2 class="prob-h">Run it on your own hardware</h2>
+    <p class="prose">The loop talks to any OpenAI-compatible endpoint, so the proposing model can be a
+    local one — LM Studio, or anything serving the same API. Point it at your own hardware and the
+    search runs unmetered: no rate limits, no quota walls, no getting blocked mid-run. Leave a patient
+    search going overnight without watching a bill.</p>
+  </section>
+
+  <!-- · WHAT YOU GET (the deliverable) -------------------------------------- -->
+  <section class="prob-section">
+    <h2 class="prob-h">What you get</h2>
+    <p class="prose">One <span class="gr">groundrule</span> — a single line the expediter could
+    read off a card at the pass, something like <em>&ldquo;start whatever's blocking the busiest
+    station.&rdquo;</em></p>
+  </section>
+
+  <!-- 6 · THE INSTRUMENTS ---------------------------------------------------- -->
+  <section class="prob-section">
+    <h2 class="prob-h">Watching the search</h2>
+    <p class="prose">A search you can't see is one you can't steer. Three live views show what the agent
+    is doing — so you know when to let a run breathe and when to pivot, swap models, or change the
+    library.</p>
+    <div class="instruments">
+      <a class="instrument" href="research-dashboard.html">
+        <span class="instrument-h">The live dashboard</span>
+        <span class="instrument-b">Every candidate as it lands, with its score and a running best — the
+        search in real time.</span>
+      </a>
+      <a class="instrument" href="research-grid.html">
+        <span class="instrument-h">The candidate grid</span>
+        <span class="instrument-b">Every schedule for a night side by side, and stacked into one overlay
+        so clusters jump out.</span>
+      </a>
+      <a class="instrument" href="research-lineage.html">
+        <span class="instrument-h">The experiment lineage</span>
+        <span class="instrument-b">The family tree of ideas — each candidate linked to the parent it
+        built on.</span>
+      </a>
+    </div>
+  </section>
+
+  <div class="shift">
+    <span class="shift-rule"></span>
+    <span class="shift-text">Watch it happen &mdash;</span>
+    <span class="shift-rule"></span>
+  </div>
+  <section class="prob-section prob-section--flush">
+    <p class="prose">Start on <a href="research-dashboard.html">the research dashboard</a> to watch the next
+    <span class="gr">groundrule</span> get found, or revisit <a href="problem.html">the problem</a> it's
+    solving.</p>
+  </section>
+
+</div>
+</body>
+</html>

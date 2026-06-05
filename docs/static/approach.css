@@ -1,0 +1,56 @@
+/* ============================================================================
+   The "Our approach" page — what makes the autoresearch loop tick. Builds on
+   problem.css (shared .wrap / .prose / .prob-section / .gr / cycle vocabulary);
+   this file adds only the pieces unique to this page.
+   ========================================================================== */
+
+/* a CLI / parameter term in running prose — the lever you'd actually turn. */
+.param{font:0.86em/1 var(--mono);color:var(--ink);background:#f1ecda;
+       border:1px solid var(--rule);border-radius:3px;padding:1px 5px;
+       white-space:nowrap;}
+
+/* an empirical aside — what we actually found, set off from the explanation.
+   A quiet rust rule on the left, the finding's verbs carried in italic. */
+.insight{margin:22px 0 2px;padding:2px 0 2px 20px;border-left:2px solid var(--accent);
+         max-width:60ch;}
+.insight p{font:italic 17px/1.55 var(--serif);color:var(--muted);margin:0;text-wrap:pretty;}
+.insight strong{font-style:normal;font-weight:600;color:var(--ink);}
+
+/* the three live views, as a small set of linked cards. */
+.instruments{margin-top:20px;display:grid;gap:16px 26px;
+             grid-template-columns:repeat(auto-fill,minmax(260px,1fr));}
+.instrument{display:flex;flex-direction:column;gap:7px;text-decoration:none;
+            border-left:2px solid var(--rule);padding:3px 0 4px 15px;transition:border-color .12s;}
+.instrument:hover{border-left-color:var(--accent);}
+.instrument-h{font:400 19px/1.25 var(--serif);color:var(--ink);}
+.instrument:hover .instrument-h{color:var(--accent);}
+.instrument-b{font-size:14px;line-height:1.55;color:var(--muted);text-wrap:pretty;}
+
+/* the closing line sits right under the divider — no big top gap. */
+.prob-section--flush{margin-top:14px;}
+
+/* ---- the human supervisor, steering into the loop diagram ---------------- */
+.carrow-h{fill:none;stroke:var(--accent);stroke-width:1.8;}
+.chuman{fill:var(--accent);}
+.chuman-lbl{fill:var(--accent);font:600 15px/1 var(--serif);letter-spacing:.05em;
+            font-feature-settings:"smcp" 1;}
+.chuman-sub{fill:var(--muted);font:italic 13px/1 var(--serif);}
+
+/* ---- the pivot illustration (sits right of the patience text) ------------ */
+/* mirrors .approach-cycle so the figure column matches the loop section. */
+.approach-fig{flex:0 0 46%;max-width:470px;}
+.approach-fig .pivot{display:block;width:100%;height:auto;margin:2px auto 0;}
+.approach-fig .cycle-cap{margin-top:6px;}
+@media (max-width:900px){.approach-fig{max-width:none;width:100%;}}
+
+.pivot-axis{stroke:var(--rule);stroke-width:1;}
+.pivot-best{fill:none;stroke:var(--muted);stroke-width:1.6;
+            stroke-linejoin:round;stroke-linecap:round;}   /* best-so-far staircase */
+.pivot-dot{fill:var(--accent);}                            /* a kept new best */
+.pivot-miss{fill:var(--paper);stroke:var(--faint);stroke-width:1.2;}  /* a discarded try */
+.pivot-pivot{stroke:var(--accent);stroke-width:1;stroke-dasharray:3 3;opacity:.65;}
+.pivot-plbl{fill:var(--accent);font:600 10px/1 var(--serif);font-feature-settings:"smcp" 1;
+            text-transform:uppercase;letter-spacing:.06em;}
+.pivot-champ{fill:none;stroke:var(--accent);stroke-width:1.5;}        /* ring on the champion */
+.pivot-champlbl{fill:var(--ink);font:600 11px/1 var(--serif);}
+.pivot-axlbl{fill:var(--faint);font:italic 12px/1 var(--serif);}
