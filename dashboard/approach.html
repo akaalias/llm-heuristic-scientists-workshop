@@ -101,13 +101,50 @@
     </div>
   </section>
 
+  <!-- 6 · THE INSTRUMENTS (the three live views) -------------------------- -->
+  <section class="prob-section">
+    <h2 class="prob-h">Watching the search</h2>
+    <p class="prose">A search you can't see is one you can't steer. Three live views show what the agent
+    is doing — so you know when to let a run breathe and when to pivot, swap models, or change the
+    library.</p>
+    <div class="instruments">
+      <div class="instrument">
+        <h3 class="instrument-h">The live dashboard</h3>
+        <p class="instrument-b">The control room. Every candidate the agent proposes lands here the
+        moment it's scored — newest on top — beside its total wait and whether it beat the best so
+        far. The chart tells the same story: scores falling round by round, the running best stepping
+        toward the <span class="gr">target</span>.</p>
+        <p class="instrument-b">It's where you watch a run breathe — and catch the moment it stalls.</p>
+        <a class="instrument-link" href="/research-dashboard">Open the dashboard →</a>
+      </div>
+      <div class="instrument">
+        <h3 class="instrument-h">The candidate grid</h3>
+        <p class="instrument-b">One service night, every candidate's schedule laid side by side — then
+        stacked into a single overlay. Where the agent keeps landing on the same move, the bars pile
+        into a column and the <em>cluster</em> jumps out; where it's still casting about, they
+        scatter.</p>
+        <p class="instrument-b">A read on what the search has settled on, at a glance.</p>
+        <a class="instrument-link" href="/research-grid">Open the grid →</a>
+      </div>
+      <div class="instrument">
+        <h3 class="instrument-h">The experiment lineage</h3>
+        <p class="instrument-b">No candidate appears from nowhere. Each one builds on a parent — and the
+        lineage draws the whole search as a family tree: the lines that refined step by step, the
+        <span class="param">pivots</span> that struck out in a new direction, and the single path that
+        reached the champion.</p>
+        <p class="instrument-b">The search's entire history, in one picture.</p>
+        <a class="instrument-link" href="/research-lineage">Open the lineage →</a>
+      </div>
+    </div>
+  </section>
+
   <!-- · THE PROVING GROUND (the battery it's scored against) ----------------- -->
   <section class="prob-section">
     <h2 class="prob-h">The proving ground</h2>
     <p class="prose">Each candidate faces a battery of service nights, every one leaning on a
     different station — so a winning <span class="gr">groundrule</span> has to be good all round, not just on the easy nights.</p>
     <div class="nights"><!--NIGHTS_TRAIN--></div>
-    <p class="prose set-off">Two more nights stay sealed. The kitchen never trains on them, so
+    <p class="prose set-off">Three more nights stay sealed. The kitchen never trains on them, so
     they're the exam that proves a <span class="gr">groundrule</span> <em>generalised</em> rather than memorised.</p>
     <div class="nights held"><!--NIGHTS_HELDOUT--></div>
   </section>
@@ -218,31 +255,6 @@
     <p class="prose">One <span class="gr">groundrule</span> — a single line the expediter could
     read off a card at the pass, something like <em>&ldquo;start whatever's blocking the busiest
     station.&rdquo;</em></p>
-  </section>
-
-  <!-- 6 · THE INSTRUMENTS ---------------------------------------------------- -->
-  <section class="prob-section">
-    <h2 class="prob-h">Watching the search</h2>
-    <p class="prose">A search you can't see is one you can't steer. Three live views show what the agent
-    is doing — so you know when to let a run breathe and when to pivot, swap models, or change the
-    library.</p>
-    <div class="instruments">
-      <a class="instrument" href="/research-dashboard">
-        <span class="instrument-h">The live dashboard</span>
-        <span class="instrument-b">Every candidate as it lands, with its score and a running best — the
-        search in real time.</span>
-      </a>
-      <a class="instrument" href="/research-grid">
-        <span class="instrument-h">The candidate grid</span>
-        <span class="instrument-b">Every schedule for a night side by side, and stacked into one overlay
-        so clusters jump out.</span>
-      </a>
-      <a class="instrument" href="/research-lineage">
-        <span class="instrument-h">The experiment lineage</span>
-        <span class="instrument-b">The family tree of ideas — each candidate linked to the parent it
-        built on.</span>
-      </a>
-    </div>
   </section>
 
   <div class="shift">
