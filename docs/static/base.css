@@ -1,0 +1,41 @@
+/* ============================================================================
+   Shared Tufte design system for the discovery dashboard.
+
+   Cream paper, near-black ink, one rust accent, Palatino serif, old-style
+   figures, thin rules instead of boxes. Linked by every page; page-specific
+   styles live in their own stylesheet (index.css / grid.css / lineage.css).
+   Adapted from the FMDiscovery dashboard's shared visual system.
+   ========================================================================== */
+:root{
+  --paper:#fffff8;        /* Tufte cream            */
+  --ink:#111111;          /* near-black body text   */
+  --muted:#6b6a60;        /* warm gray — secondary  */
+  --faint:#9b998c;        /* fainter — captions     */
+  --rule:#d9d5c3;         /* warm hairline          */
+  --rule-soft:#ece9da;    /* fainter hairline       */
+  --accent:#8c2f1f;       /* ET rust-red, sparingly */
+  --ochre:#8a6a1e;        /* secondary data tint    */
+  --disc:#b9b6a6;         /* discarded marks        */
+  --serif:"Palatino","Palatino Linotype","Book Antiqua","URW Palladio L",Georgia,serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+*{box-sizing:border-box;}
+html{background:var(--paper);}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font:18px/1.6 var(--serif);
+  font-feature-settings:"onum" 1,"liga" 1;   /* old-style figures, ligatures */
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---- shared page header + nav ------------------------------------------- */
+.dash-head{max-width:66.67vw;margin:0 auto;padding:48px 0 6px;}
+.eyebrow{font:italic 16px/1 var(--serif);color:var(--accent);letter-spacing:.01em;margin-bottom:13px;}
+.dash-head h1{font-weight:400;font-size:34px;line-height:1.12;letter-spacing:-.01em;margin:0 0 8px;}
+.dash-head .sub{color:var(--muted);font-style:italic;font-size:18px;margin:0 0 10px;max-width:64ch;}
+.nav{font-size:15px;margin:0 0 14px;}
+.nav a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;}
+.nav a:hover{border-bottom-color:var(--accent);}
+.nav a:not(:last-child)::after{content:" · ";color:var(--faint);border:0;}
+
+.empty{padding:28px 0;color:var(--muted);font-style:italic;}

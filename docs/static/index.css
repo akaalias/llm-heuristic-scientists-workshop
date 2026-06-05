@@ -1,0 +1,166 @@
+/* ============================================================================
+   Run-log dashboard — page-specific styles (header/tokens live in base.css).
+   The live SVG chart, the Tufte run table, and the click-to-expand detail.
+   ========================================================================== */
+
+/* ---- header meta strip (legend + live indicator) ------------------------ */
+.dash-meta{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;font-size:14px;color:var(--muted);}
+.dash-meta .k{display:inline-flex;align-items:center;gap:7px;}
+.dash-meta .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.dash-meta .dot.kept{background:var(--ink);}
+.dash-meta .dot.disc{background:var(--disc);}
+.dash-meta .x{color:var(--accent);font-weight:700;line-height:1;}
+.dash-meta .bar{width:16px;height:0;border-top:2px solid var(--ink);display:inline-block;}
+.dash-meta .bar.dash{border-top:2px dashed var(--accent);}
+.dash-meta .ring{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--ochre);display:inline-block;}
+/* pivot row: an ochre left-rule (a deliberate change of direction) */
+.pivot-row{box-shadow:inset 3px 0 0 var(--ochre);}
+#updated{color:var(--faint);font-style:italic;margin-left:auto;}
+#live{font-size:13px;}
+#live.on{color:#3f6e6e;}
+#live.on::before{content:"● ";animation:pulse 2s ease-in-out infinite;}
+#live.off{color:var(--faint);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+/* ---- the live chart — inline SVG, no libraries -------------------------- */
+.dash-wrap{max-width:66.67vw;margin:0 auto;padding:4px 0 64px;}
+.chart-card{border-top:1px solid var(--rule);padding:16px 0 4px;margin-top:18px;}
+#chart{width:100%;height:auto;display:block;}
+#chart text{font:13px/1 var(--serif);fill:var(--muted);font-feature-settings:"onum" 1;}
+#chart .grid{stroke:var(--rule-soft);stroke-width:1;}
+#chart .axis{stroke:var(--ink);stroke-width:1;}
+#chart .bestline{fill:none;stroke:var(--ink);stroke-width:1.6;}
+#chart .pt-kept{fill:var(--ink);}
+#chart .pt-disc{fill:var(--disc);opacity:.6;}
+#chart .pt-failed{stroke:var(--accent);stroke-width:1.6;fill:none;}
+#chart .pt-pivot{fill:none;stroke:var(--ochre);stroke-width:1.5;}   /* ring = pivot (new approach) */
+#chart .target{stroke:var(--accent);stroke-width:1;stroke-dasharray:4 4;opacity:.85;}
+#chart .hit{cursor:pointer;}
+#chart .dot.hi{stroke:var(--ink);stroke-width:1.5;}      /* hovered from chart   */
+#chart .dot.sel{stroke:var(--accent);stroke-width:2.2;}  /* clicked / selected   */
+/* a freshly-arrived dot grows in from its own centre (opacity untouched, so
+   discarded dots keep their faintness) */
+@keyframes dotIn{from{transform:scale(0);}to{transform:scale(1);}}
+#chart .dot.appear{transform-box:fill-box;transform-origin:center;
+                   animation:dotIn .45s cubic-bezier(.2,.8,.3,1.25);}
+#chart .tlab{fill:var(--accent);font-style:italic;}
+#chart .xlab{fill:var(--faint);font-feature-settings:"smcp" 1;text-transform:uppercase;letter-spacing:.05em;}
+.chart-empty{color:var(--muted);font-style:italic;padding:34px 0;}
+
+/* ---- the run table — Tufte data table ----------------------------------- */
+.tbl-card{border-top:1.5px solid var(--ink);margin-top:26px;overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:14.5px;}
+th,td{text-align:left;padding:9px 14px 9px 0;vertical-align:top;}
+thead th:first-child,tbody td:first-child{text-align:right;padding-right:18px;white-space:nowrap;}
+th{font:600 12px/1.2 var(--serif);font-feature-settings:"smcp" 1;
+   text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+   border-bottom:1.5px solid var(--ink);white-space:nowrap;}
+td{border-bottom:1px solid var(--rule-soft);}
+tbody tr:hover{background:#f7f3e3;}
+
+/* numbers: lining tabular figures so columns align */
+.num{font-variant-numeric:lining-nums tabular-nums;white-space:nowrap;}
+.best{font-weight:700;}                       /* lowest-lateness row so far   */
+.best-row{box-shadow:inset 2px 0 0 var(--ink);}   /* ink left-rule = running best */
+.mono{font:12.5px/1.4 var(--mono);color:var(--muted);}
+.faint{color:var(--faint);}
+
+/* small-caps status tags — one restrained tint each, no coloured pills */
+.status{font:600 11.5px/1 var(--serif);font-feature-settings:"smcp" 1;
+        text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;}
+.st-ok{color:var(--ink);}
+.st-bad{color:var(--accent);}
+
+/* a new row slid in by the live stream gets a brief warm highlight */
+@keyframes rowflash{0%,25%{background:#f0e2c4;}100%{background:transparent;}}
+.row-new td{animation:rowflash 2.2s ease-out;}
+
+/* cross-highlight from the chart: hovered (transient) and selected (sticky) */
+.row-hi{background:#f0e2c4;}
+.row-selected{background:#f6ecdc;box-shadow:inset 3px 0 0 var(--accent);}
+
+/* ---- click-to-expand experiment detail ---------------------------------- */
+tr.row{cursor:pointer;}
+tr.expanded{background:#f4efe0;}
+tr.detail-row > td{background:#fcfbf2;border-bottom:1.5px solid var(--ink);padding:0;
+                    text-align:left;white-space:normal;}  /* reset the #-column's nowrap */
+
+/* a constrained two-column layout: a quiet meta/lineage rail + a measured
+   content column. 1/3 meta rail | 2/3 content, via flex with a *definite*
+   width (the page column). min-width:0 on the content side is what lets long
+   text wrap and the code scroll within its column instead of stretching the
+   table. */
+.detail-inner{display:flex;gap:36px;width:66.67vw;box-sizing:border-box;
+              padding:24px 30px 30px;align-items:flex-start;}
+.d-meta{flex:0 0 31%;}
+.d-main{flex:1 1 0;min-width:0;}
+@media(max-width:920px){.detail-inner{flex-direction:column;width:auto;gap:18px;}
+                        .d-meta{flex-basis:auto;}}
+
+/* meta rail */
+.d-meta{display:flex;flex-direction:column;gap:18px;}
+.d-symbol{font:12px/1.4 var(--mono);color:var(--ink);background:#efe9d8;
+          padding:5px 9px;border-radius:3px;align-self:flex-start;
+          overflow-wrap:anywhere;max-width:100%;}
+.d-facts{display:flex;flex-direction:column;gap:5px;font-size:13px;}
+.d-fact{display:flex;justify-content:space-between;gap:12px;line-height:1.3;}
+.d-k{font:600 11px/1.3 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+     letter-spacing:.05em;color:var(--muted);}
+.d-v{color:var(--ink);font-variant-numeric:tabular-nums;text-align:right;}
+.d-v.bad{color:var(--accent);}
+
+.d-lineage-h{font:600 11px/1.3 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+             letter-spacing:.06em;color:var(--faint);margin-bottom:7px;
+             padding-bottom:6px;border-bottom:1px solid var(--rule-soft);}
+.d-parent{display:block;width:fit-content;max-width:100%;color:var(--accent);cursor:pointer;
+          font:600 11.5px/1.4 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+          letter-spacing:.03em;border-bottom:1px solid transparent;margin-bottom:4px;
+          overflow-wrap:anywhere;}
+.d-parent:hover{border-bottom-color:var(--accent);}
+.d-parent .pn{color:var(--muted);font-weight:400;}
+.d-genesis{font-style:italic;color:var(--faint);font-size:13px;}
+
+/* content column */
+.d-title{font:600 22px/1.22 var(--serif);color:var(--ink);margin:0 0 10px;letter-spacing:-.006em;}
+.d-rule-h,.d-code-h{font:600 11px/1.3 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+          letter-spacing:.06em;color:var(--faint);margin:0 0 7px;}
+.d-rule-h{margin-top:2px;}
+.d-summary{font:italic 17px/1.5 var(--serif);color:#33312b;margin:0 0 22px;max-width:70ch;}
+.d-code-h{margin-top:0;}
+.d-loading{color:var(--muted);font-style:italic;margin:0;}
+
+/* code block + minimal python highlighting */
+pre.code{font:12.5px/1.62 var(--mono);background:#fbfaf2;border-left:2px solid var(--rule);
+         padding:13px 16px;margin:0;white-space:pre;overflow-x:auto;color:#33312b;border-radius:0 2px 2px 0;}
+pre.code .k{color:var(--accent);}                   /* keywords */
+pre.code .s{color:var(--ochre);}                    /* strings  */
+pre.code .c{color:var(--faint);font-style:italic;}  /* comments */
+pre.code .n{color:#3f6e6e;}                         /* numbers  */
+
+/* schedule Gantts (inline SVG) — one per battery sample, listed below the code */
+.d-cap{font:italic 12px/1.4 var(--serif);color:var(--faint);margin:0 0 8px;}
+.d-sched-h{margin-top:24px;}
+.d-scheds{display:flex;flex-direction:column;gap:20px;}
+.d-sched-cap{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 5px;}
+.d-sched-name{font:600 11px/1.3 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+              letter-spacing:.05em;color:var(--muted);}
+.d-sched-lat{font:13px/1 var(--serif);font-variant-numeric:lining-nums tabular-nums;color:var(--muted);}
+.d-scheds svg.gantt{margin:0;}   /* the list gap controls spacing, not per-svg margin */
+svg.gantt{width:100%;height:auto;display:block;margin:0 0 22px;}
+svg.gantt text{font:11px/1 var(--serif);fill:var(--muted);}
+svg.gantt .gg{stroke:var(--rule-soft);stroke-width:1;}
+svg.gantt .ga{stroke:var(--ink);stroke-width:1;}
+svg.gantt .gy{font-feature-settings:"smcp" 1;text-transform:uppercase;letter-spacing:.03em;}
+svg.gantt .gx{fill:var(--faint);}
+svg.gantt .gd{fill:#33312b;font:10px/1 var(--mono);pointer-events:none;}  /* dish # — ink on pale fill */
+svg.gantt .gmiss{stroke:var(--accent);stroke-width:1.5;fill:none;}              /* × atop a missed due line */
+svg.gantt .gmet{stroke:#4a7a3a;stroke-width:1.6;fill:none;stroke-linecap:round;
+                stroke-linejoin:round;}                                         /* ✓ atop a met due line */
+svg.gantt rect[data-tip]:hover{filter:brightness(0.9);}                   /* slightly darker on hover */
+
+/* popover for schedule bars: a dark ink chip, cream text, anchored centred
+   just above the hovered bar (positioned by JS from the bar's box) */
+#gtip{position:fixed;z-index:30;pointer-events:none;opacity:0;transition:opacity .08s;
+      transform:translate(-50%,-100%);white-space:nowrap;text-align:center;
+      background:var(--ink);color:var(--paper);font:12px/1.35 var(--serif);
+      padding:5px 9px;border-radius:2px;}

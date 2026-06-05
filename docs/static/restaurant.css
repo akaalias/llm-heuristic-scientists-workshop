@@ -1,0 +1,125 @@
+/* ============================================================================
+   Restaurant one-pager — page-specific styles (tokens/header live in base.css).
+   The public face of Maison Braise: lede, ratings, à la carte menu, and story.
+   ========================================================================== */
+.wrap{max-width:66.67vw;margin:0 auto;padding:4px 0 64px;}
+
+.welcome{margin:18px 0 30px;}
+.lede{font-size:21px;line-height:1.55;color:var(--ink);margin:0;max-width:60ch;}
+.welcome-sig{font:italic 17px/1.4 var(--serif);color:var(--accent);margin:12px 0 0;}
+
+/* ---- ratings row -------------------------------------------------------- */
+.ratings{display:flex;flex-wrap:wrap;gap:0;border-top:1px solid var(--rule);
+         border-bottom:1px solid var(--rule);margin:0 0 8px;}
+.rating{flex:1 1 0;min-width:150px;padding:14px 22px 14px 0;}
+.rating + .rating{padding-left:22px;border-left:1px solid var(--rule-soft);}
+.rating .r-src{font:italic 14px/1 var(--serif);color:var(--accent);margin-bottom:7px;}
+.rating .r-val{font:400 26px/1 var(--serif);font-variant-numeric:lining-nums;color:var(--ink);}
+.rating .r-val .r-out{font-size:16px;color:var(--faint);}
+.rating .r-sub{font-size:13px;color:var(--muted);margin-top:5px;}
+
+/* ---- sections ----------------------------------------------------------- */
+.resto-section{margin-top:40px;}
+.resto-h{font:400 23px/1.2 var(--serif);color:var(--ink);margin:0 0 18px;
+         padding-bottom:8px;border-bottom:1.5px solid var(--ink);}
+.prose{font-size:18px;line-height:1.65;color:var(--ink);max-width:62ch;margin:0;}
+.address{font:600 13px/1.4 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+         letter-spacing:.05em;color:var(--muted);margin:0 0 12px;}
+
+/* ---- scene illustrations (framed engravings) inside a section ----------- */
+.scene-row{display:flex;gap:30px;align-items:flex-start;}
+.scene-row .prose,.scene-row .corner-text{flex:1 1 auto;min-width:0;}
+.scene-fig{flex:0 0 38%;max-width:360px;margin:0;}
+.scene-fig--left{order:-1;}            /* exterior sits left of the corner text */
+@media (max-width:760px){.scene-row{flex-direction:column;}.scene-fig{max-width:none;width:100%;}}
+
+/* ---- à la carte menu ---------------------------------------------------- */
+.menu-group{margin-bottom:26px;}
+.menu-group:last-child{margin-bottom:0;}
+.menu-group-h{font:italic 17px/1 var(--serif);color:var(--accent);
+              letter-spacing:.01em;margin:0 0 12px;}
+.menu-item{margin:0 0 14px;}
+.menu-item-top{display:flex;align-items:baseline;}
+.mi-name{font-size:19px;color:var(--ink);white-space:nowrap;}
+.mi-dots{flex:1 1 auto;border-bottom:1px dotted var(--rule);margin:0 9px 4px;}
+.mi-price{font:18px/1 var(--serif);font-variant-numeric:lining-nums tabular-nums;
+          color:var(--ink);white-space:nowrap;}
+.mi-blurb{font-size:15px;line-height:1.5;color:var(--muted);font-style:italic;
+          max-width:54ch;margin-top:3px;}
+
+/* ---- framed picture: gilt frame + wide passe-partout mat -----------------
+   The wrapper (.framed) carries the frame (border) and the mat (padding, set
+   per-variant via --mat). Its box-shadows give the crisp outer frame edge, the
+   gilt bevel highlight, AND the frame's own shadow cast inward onto the mat.
+   The ::after overlay sits exactly over the picture and casts the mat's (passe-
+   partout) inset shadow onto it. .framed-img is the picture (or initials). */
+.framed{position:relative;display:block;background:#fcf9ee;
+      border:var(--frame,4px) solid #8a6a1e;          /* gilt frame                 */
+      border-radius:1px;padding:var(--mat,18px);       /* the passe-partout mat      */
+      box-shadow:0 0 0 1px #4a3a1e,                    /* crisp dark outer edge      */
+                 inset 0 0 0 1px #cdb98c,              /* gilt bevel inside frame    */
+                 inset 0 0 8px 0 rgba(60,42,16,.32),   /* frame shadow onto the mat  */
+                 0 4px 10px rgba(45,33,15,.24);}       /* hang-on-the-wall shadow    */
+.framed::after{content:"";position:absolute;inset:var(--mat,18px);pointer-events:none;
+      box-shadow:inset 0 0 7px 1px rgba(0,0,0,.36);    /* passe-partout onto picture */
+      z-index:1;}
+.framed-img{display:block;width:100%;height:100%;object-fit:cover;
+      background:#fcf9ee;filter:saturate(0);}           /* keep the ink monochrome    */
+.framed-img--mono{display:flex;align-items:center;justify-content:center;
+      color:var(--faint);font:400 1em/1 var(--serif);font-feature-settings:"smcp" 1;
+      letter-spacing:.04em;filter:none;}
+/* variants — outer size + mat/frame widths (passe-partout widened) */
+.framed--avatar{--mat:16px;--frame:3px;width:96px;height:96px;flex:0 0 auto;}
+.framed--avatar .framed-img--mono{font-size:18px;}
+.framed--chef{--mat:30px;--frame:5px;width:212px;height:212px;flex:0 0 auto;}
+.framed--chef .framed-img--mono{font-size:38px;}
+.framed--scene{--mat:26px;--frame:6px;}
+.framed--scene .framed-img{height:auto;}
+
+/* portraits get an extra white liner inside the mat, for more breathing room
+   around the subject (the hedcuts sit on white, so this reads as more white). */
+.framed--avatar .framed-img{padding:7px;background:#ffffff;}
+.framed--chef .framed-img{padding:13px;background:#ffffff;}
+
+/* ---- the chef (featured) ------------------------------------------------ */
+.chef{display:flex;gap:26px;align-items:flex-start;}
+.chef-text{flex:1 1 auto;}
+.chef-name{font:400 24px/1.15 var(--serif);color:var(--ink);margin:0;}
+.chef-role{font:italic 15px/1.3 var(--serif);color:var(--accent);margin:5px 0 12px;}
+.chef-bio{font-size:18px;line-height:1.65;color:var(--ink);max-width:60ch;margin:0;}
+
+/* ---- the team ----------------------------------------------------------- */
+.team-group{margin-bottom:30px;}
+.team-group:last-child{margin-bottom:0;}
+.team-group-h{font:italic 17px/1 var(--serif);color:var(--accent);
+              letter-spacing:.01em;margin:0 0 16px;}
+.team{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+      gap:22px 30px;}
+.member{display:flex;gap:16px;border-left:2px solid var(--rule);padding:2px 0 2px 14px;}
+.m-body{flex:1 1 auto;min-width:0;}
+.m-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;}
+.m-name{font-size:19px;color:var(--ink);}
+.m-since{font:13px/1 var(--serif);font-variant-numeric:lining-nums;color:var(--faint);white-space:nowrap;}
+.m-role{font:italic 15px/1.3 var(--serif);color:var(--accent);margin-top:3px;}
+.m-note{font-size:14px;line-height:1.5;color:var(--muted);margin-top:6px;}
+.m-bio{font-size:14px;line-height:1.55;color:var(--ink);margin-top:8px;}
+
+/* ---- visit / reserve ---------------------------------------------------- */
+.visit-grid{display:flex;flex-wrap:wrap;gap:30px 40px;}
+.visit-col{flex:1 1 220px;min-width:200px;}
+.visit-sub{font:italic 17px/1 var(--serif);color:var(--accent);letter-spacing:.01em;margin:0 0 12px;}
+.hours-row{display:flex;justify-content:space-between;gap:16px;padding:5px 0;
+           border-bottom:1px solid var(--rule-soft);font-size:15px;}
+.hr-days{color:var(--ink);}
+.hr-time{color:var(--muted);font-variant-numeric:lining-nums tabular-nums;white-space:nowrap;}
+.hours-closed .hr-days,.hours-closed .hr-time{color:var(--faint);font-style:italic;}
+.visit-line{font-size:16px;line-height:1.6;color:var(--ink);margin:0 0 10px;}
+.visit-phone{margin:0;}
+.visit-phone a{font:400 24px/1.2 var(--serif);font-variant-numeric:lining-nums;
+               color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;}
+.visit-phone a:hover{border-bottom-color:var(--accent);}
+
+/* ---- footer: a dotted rule with a heart in the middle ------------------- */
+.resto-footer{display:flex;align-items:center;gap:16px;margin-top:60px;}
+.foot-rule{flex:1 1 auto;border-top:1px dotted var(--rule);}
+.foot-heart{flex:0 0 auto;color:var(--accent);font-size:17px;line-height:1;}

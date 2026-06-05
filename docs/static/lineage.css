@@ -1,0 +1,62 @@
+/* ============================================================================
+   Experiment lineage — page-specific styles (header/tokens live in base.css).
+   A dependency-free inline-SVG arc diagram: experiments left→right in
+   discovery order, arcs from each experiment to the parent(s) it built on.
+   ========================================================================== */
+.legend{max-width:66.67vw;margin:10px auto 4px;display:flex;flex-wrap:wrap;gap:10px 22px;font-size:14px;color:var(--muted);}
+.legend .k{display:inline-flex;align-items:center;gap:7px;}
+.legend .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.legend .dot.kept{background:var(--ink);} .legend .dot.disc{background:var(--disc);}
+.legend .dot.fail{background:var(--accent);}
+.legend .ring{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--ochre);display:inline-block;}
+.legend .arc{width:18px;height:9px;border-top:1px solid var(--rule);display:inline-block;
+             border-radius:9px 9px 0 0;}
+/* full-bleed diagram: breaks out of the reading column to the viewport,
+   scrolls sideways when there are many experiments */
+#diagram{overflow-x:auto;border-top:1px solid var(--rule);margin-top:14px;
+         padding:24px 28px 16px;scrollbar-width:thin;scrollbar-color:var(--rule) transparent;}
+#diagram::-webkit-scrollbar{height:6px;}
+#diagram::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px;}
+
+/* lineage svg — natural px width so it can exceed the viewport and scroll */
+#lin{display:block;}
+#lin text{font:12px/1 var(--serif);fill:var(--muted);}
+#lin .edge{fill:none;stroke:#b2ac99;stroke-width:1;}   /* visible by default */
+#lin .nd{cursor:pointer;}
+#lin .nk{fill:var(--ink);}
+#lin .ndd{fill:var(--disc);}
+#lin .nf{fill:var(--accent);}
+#lin .np{fill:none;stroke:var(--ochre);stroke-width:1.5;}   /* ring = pivot (new approach) */
+#lin .nlab{fill:var(--faint);font:10px/1 var(--serif);font-variant-numeric:lining-nums;}
+#lin .hit{cursor:pointer;}
+/* on hover: isolate the ancestry — drop everything else nearly out, then
+   re-light the path (immediate parents strongest, distant ancestors medium) */
+#lin.dim .nd,#lin.dim .edge,#lin.dim .nlab{opacity:.07;}
+#lin.dim .nd.lit{opacity:.55;}                          /* distant ancestors: light */
+#lin.dim .nd.lit-direct{opacity:1;}                     /* hovered + immediate parents: full */
+#lin.dim .nlab.lit{opacity:1;fill:var(--faint);}        /* distant ancestors: light label */
+#lin.dim .nlab.lit-direct{opacity:1;fill:var(--ink);}   /* hovered + immediate parents: ink */
+#lin.dim .edge.lit{opacity:.4;stroke:var(--muted);stroke-width:1;}      /* ancestor edges: light */
+#lin.dim .edge.lit-direct{opacity:1;stroke:var(--ink);stroke-width:2;}  /* immediate parents: strong */
+
+/* hover popover — anchored below the node (fixed), with the schedule thumbnail
+   beside the rule + provenance */
+#tip{position:fixed;z-index:30;pointer-events:none;opacity:0;transition:opacity .1s;
+     background:var(--paper);color:var(--ink);border:1px solid var(--rule);
+     box-shadow:0 6px 22px rgba(60,50,30,.16);border-radius:5px;
+     font:13px/1.45 var(--serif);padding:12px 14px;max-width:460px;}
+#tip .pop-title{font-weight:700;font-size:14.5px;line-height:1.25;margin-bottom:2px;}
+#tip .pop-meta{color:var(--muted);font:11px/1.3 var(--serif);font-feature-settings:"smcp" 1;
+               text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;}
+#tip .pop-grid{display:flex;gap:16px;align-items:flex-start;}
+#tip .pop-diagram{flex:0 0 auto;width:220px;background:#fcfbf2;border-left:2px solid var(--rule);padding:6px 8px;}
+#tip .pop-diagram svg{width:100%;height:auto;display:block;}
+#tip .pop-body{flex:1 1 auto;min-width:190px;max-width:300px;}
+#tip .pop-sec + .pop-sec{margin-top:11px;}
+#tip .pop-h{font:800 10px/1 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+            letter-spacing:.05em;color:var(--faint);margin-bottom:4px;}
+#tip .pop-body p{margin:0;font:italic 13px/1.5 var(--serif);color:#33312b;}
+#tip .pop-parents{display:flex;flex-direction:column;gap:3px;}
+#tip .pop-parent{font:600 11px/1.35 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+                 letter-spacing:.03em;color:var(--accent);}
+#tip .pop-parent .pn{color:var(--muted);font-weight:400;}

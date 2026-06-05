@@ -1,0 +1,23 @@
+/* ============================================================================
+   Schedule grid — page-specific styles (header/tokens live in base.css).
+   Small-multiples grid of label-free Gantt thumbnails, grouped by sample.
+   ========================================================================== */
+.wrap{max-width:66.67vw;margin:0 auto;padding:4px 0 64px;}
+.sample{margin-top:34px;}
+.sample-h{font:400 23px/1.2 var(--serif);color:var(--ink);margin:0;padding-bottom:8px;
+          border-bottom:1.5px solid var(--ink);display:flex;align-items:baseline;
+          justify-content:space-between;font-variant-numeric:lining-nums;}
+.sample-h .cnt{font:italic 14px/1 var(--serif);color:var(--faint);}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+      gap:24px 28px;margin-top:20px;}
+.cell{display:block;text-decoration:none;color:inherit;}
+.cell-thumb{background:#fcfbf2;border-left:2px solid var(--rule);padding:6px 8px;}
+svg.thumb{width:100%;height:auto;display:block;}
+.cell:hover .cell-thumb{background:#f7f3e3;}
+.cell-cap{display:flex;align-items:baseline;gap:9px;margin-top:9px;}
+.cell-n{font:600 12px/1 var(--serif);font-feature-settings:"smcp" 1;text-transform:uppercase;
+        letter-spacing:.04em;color:var(--muted);}
+.cell-title{flex:1 1 auto;font-size:14px;color:var(--ink);
+            overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cell:hover .cell-title{color:var(--accent);}
+.cell-lat{font:13px/1 var(--serif);font-variant-numeric:lining-nums tabular-nums;color:var(--muted);}
