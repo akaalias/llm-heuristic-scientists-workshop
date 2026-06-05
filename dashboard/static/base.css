@@ -55,3 +55,14 @@ body{
 .research-intro a:hover{border-bottom-color:var(--accent);}
 
 .empty{padding:28px 0;color:var(--muted);font-style:italic;}
+
+/* ---- shared site footer — workshop attribution + credit, on every page --- */
+.site-footer{max-width:66.67vw;margin:64px auto 40px;padding-top:16px;
+             border-top:1px solid var(--rule);
+             font:italic 14px/1.7 var(--serif);color:var(--faint);
+             text-align:center;text-wrap:pretty;}
+.site-footer a{font-style:normal;color:var(--accent);text-decoration:none;
+               border-bottom:1px solid transparent;}
+.site-footer a:hover{border-bottom-color:var(--accent);}
+.site-footer .foot-sep{color:var(--rule);margin:0 5px;}
+.site-footer .foot-love{color:var(--accent);font-style:normal;}

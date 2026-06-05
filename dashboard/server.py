@@ -804,11 +804,31 @@ def render_nav(current: str) -> str:
     return f'<div class="nav">{"".join(out)}</div>'
 
 
+def render_footer() -> str:
+    """The shared site footer — workshop attribution and credit. Same markup on
+    every page; styled by `.site-footer` in base.css."""
+    return (
+        '<footer class="site-footer">'
+        'Based on <a href="https://www.linkedin.com/in/nima-h-siboni-078380197">Nima H. Siboni</a>&rsquo;s '
+        '<a href="https://luma.com/7zfk3orp?tk=9rPLPi">&ldquo;The Heuristic Scientist: '
+        'Open-Ended Algorithm Discovery with LLMs&rdquo;</a> workshop. '
+        '<span class="foot-sep" aria-hidden="true">&middot;</span> '
+        'Made with <span class="foot-love" aria-hidden="true">&#9829;</span> by '
+        '<a href="https://alexisrondeau.me">Alexis Rondeau</a>.'
+        '</footer>'
+    )
+
+
+def with_footer(page: str) -> str:
+    """Drop the shared footer in just before </body>, on any rendered page."""
+    return page.replace("</body>", render_footer() + "\n</body>", 1)
+
+
 def render_page(template: str, csv_path: Path, target: float) -> str:
     rows = load_rows(csv_path)
     sub, updated = meta(rows)
     chart = json.dumps({"points": chart_data(rows), "target": target})
-    return (template
+    return with_footer(template
             .replace("<!--NAV-->", render_nav("dashboard"))
             .replace("<!--TABLE-->", render_table(rows))
             .replace("<!--SUB-->", html.escape(sub))
@@ -846,7 +866,7 @@ def render_lineage_page(template: str, csv_path: Path, target: float) -> str:
     sub = (f"{n} experiment{'' if n == 1 else 's'}, left → right in discovery order; "
            "each arc links an experiment to the parent it built on. Hover to trace its "
            "ancestry back to the root; click to open it on the research dashboard." if n else "No experiments yet.")
-    return (template
+    return with_footer(template
             .replace("<!--NAV-->", render_nav("lineage"))
             .replace("<!--LINEAGEDATA-->", json.dumps(data))
             .replace("<!--RESEARCH_INTRO-->", research_intro())
@@ -1067,7 +1087,7 @@ def render_restaurant_page(template: str, csv_path: Path) -> str:
     metadata) but kept in the signature to match serve_static_page's contract."""
     r = RESTAURANT
     loc = r.get("location", {})
-    return (template
+    return with_footer(template
             .replace("<!--NAV-->",         render_nav("restaurant"))
             .replace("<!--NAME-->",        html.escape(r["name"]))
             .replace("<!--STYLE-->",       html.escape(r["style"]))
@@ -1183,7 +1203,7 @@ def failing_figure() -> str:
 def render_problem_page(template: str, csv_path: Path) -> str:
     """The plain-English 'what we're solving' page. csv_path is unused (the page
     is descriptive only) but kept to match serve_static_page's contract."""
-    return (template
+    return with_footer(template
             .replace("<!--NAV-->",            render_nav("problem"))
             .replace("<!--NAME-->",           html.escape(RESTAURANT["name"]))
             .replace("<!--STATIONS-->",       render_stations(STATION_CAPACITY))
@@ -1193,7 +1213,7 @@ def render_problem_page(template: str, csv_path: Path) -> str:
 def render_approach_page(template: str, csv_path: Path) -> str:
     """The 'our approach' page: the autoresearch loop and what makes it tick.
     Descriptive only — csv_path is unused but kept for the render contract."""
-    return (template
+    return with_footer(template
             .replace("<!--NAV-->",            render_nav("approach"))
             .replace("<!--NAME-->",           html.escape(RESTAURANT["name"]))
             .replace("<!--NIGHTS_TRAIN-->",   render_nights(TRAINING_BATTERY))
@@ -1207,7 +1227,7 @@ def render_grid_page(template: str, csv_path: Path) -> str:
            "section per sample, each showing every experiment's schedule on it (best "
            "on that sample first). Click any to open it on the research dashboard."
            if n else "No schedules yet.")
-    return (template
+    return with_footer(template
             .replace("<!--NAV-->", render_nav("grid"))
             .replace("<!--GRID-->", render_grid(rows, csv_path.parent))
             .replace("<!--RESEARCH_INTRO-->", research_intro())
