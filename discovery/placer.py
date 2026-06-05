@@ -23,6 +23,7 @@ from problem_definition.model import (
     Step,
     earliest_start,
 )
+from problem_definition.step_id import step_id
 from util.infra import OrderSpec, ScheduleEntry
 
 
@@ -40,7 +41,7 @@ def init_state(orders: list[OrderSpec], kitchen: dict[str, int]) -> State:
             prev_step: Step | None = None
             for s_idx, (duration, station) in enumerate(RECIPES[dish_name]):
                 step = Step(
-                    id        = f"o{oid}.d{d_idx}.s{s_idx}",
+                    id        = step_id(oid, d_idx, s_idx),
                     duration  = float(duration),
                     station   = station,
                     dish      = dish,

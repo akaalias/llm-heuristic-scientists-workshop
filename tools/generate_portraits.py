@@ -18,15 +18,15 @@ Usage
 """
 
 import argparse
-import base64
 import re
 import sys
 import unicodedata
-from pathlib import Path
 
 from problem_definition.model import RESTAURANT
+from tools.image_gen import Job, add_common_args, render_jobs
+from tools.paths import STATIC_DIR
 
-OUT_DIR = Path(__file__).resolve().parent.parent / "dashboard" / "static" / "portraits"
+OUT_DIR = STATIC_DIR / "portraits"
 
 # Per-person art direction so the faces read as distinct people. Keyed by name;
 # anyone missing falls back to a generic description built from their role.
@@ -68,22 +68,10 @@ def build_prompt(person: dict) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Generate hedcut team portraits via OpenAI images.")
     ap.add_argument("--only", help="generate just this person (exact name match)")
-    ap.add_argument("--force", action="store_true", help="overwrite portraits that already exist")
-    ap.add_argument("--quality", default="medium", choices=["low", "medium", "high"],
-                    help="image quality (cost grows with quality; default: medium)")
     ap.add_argument("--size", default="1024x1024",
                     choices=["1024x1024", "1024x1536", "1536x1024"], help="image size")
-    ap.add_argument("--model", default="gpt-image-1", help="OpenAI image model")
+    add_common_args(ap)
     args = ap.parse_args()
-
-    try:
-        from openai import OpenAI
-    except ImportError:
-        print("The openai SDK isn't installed. Run:  pip install openai", file=sys.stderr)
-        return 2
-
-    client = OpenAI()   # reads OPENAI_API_KEY from the environment
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     people = RESTAURANT["people"]
     if args.only:
@@ -92,29 +80,12 @@ def main() -> int:
             print(f"No team member named {args.only!r}.", file=sys.stderr)
             return 1
 
-    made = skipped = failed = 0
-    for p in people:
-        name = p.get("name", "")
-        dest = OUT_DIR / f"{slug(name)}.png"
-        if dest.exists() and not args.force:
-            print(f"· skip   {name}  ({dest.name} exists)")
-            skipped += 1
-            continue
-        print(f"… render {name} …", flush=True)
-        try:
-            res = client.images.generate(
-                model=args.model, prompt=build_prompt(p),
-                size=args.size, quality=args.quality, n=1, background="opaque",
-            )
-            dest.write_bytes(base64.b64decode(res.data[0].b64_json))
-            print(f"✓ saved  {dest.relative_to(OUT_DIR.parent.parent.parent)}")
-            made += 1
-        except Exception as exc:   # one bad portrait shouldn't abort the batch
-            print(f"✗ failed {name}: {type(exc).__name__}: {exc}", file=sys.stderr)
-            failed += 1
-
-    print(f"\nDone — {made} made, {skipped} skipped, {failed} failed. → {OUT_DIR}")
-    return 1 if failed and not made else 0
+    jobs = [
+        Job(label=p.get("name", ""), dest=OUT_DIR / f'{slug(p.get("name", ""))}.png',
+            prompt=build_prompt(p), size=args.size)
+        for p in people
+    ]
+    return render_jobs(jobs, args, OUT_DIR)
 
 
 if __name__ == "__main__":

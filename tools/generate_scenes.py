@@ -18,11 +18,11 @@ Usage
 """
 
 import argparse
-import base64
-import sys
-from pathlib import Path
 
-OUT_DIR = Path(__file__).resolve().parent.parent / "dashboard" / "static" / "scenes"
+from tools.image_gen import Job, add_common_args, render_jobs
+from tools.paths import STATIC_DIR
+
+OUT_DIR = STATIC_DIR / "scenes"
 
 ENGRAVING = (
     "Black-and-white pen-and-ink engraving illustration in the Wall Street Journal "
@@ -64,45 +64,16 @@ SCENES = {
 def main() -> int:
     ap = argparse.ArgumentParser(description="Generate engraving scene images via OpenAI images.")
     ap.add_argument("--only", choices=list(SCENES), help="generate just this scene")
-    ap.add_argument("--force", action="store_true", help="overwrite scenes that already exist")
-    ap.add_argument("--quality", default="medium", choices=["low", "medium", "high"],
-                    help="image quality (cost grows with quality; default: medium)")
-    ap.add_argument("--model", default="gpt-image-1", help="OpenAI image model")
+    add_common_args(ap)
     args = ap.parse_args()
 
-    try:
-        from openai import OpenAI
-    except ImportError:
-        print("The openai SDK isn't installed. Run:  pip install openai", file=sys.stderr)
-        return 2
-
-    client = OpenAI()   # reads OPENAI_API_KEY from the environment
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-
     keys = [args.only] if args.only else list(SCENES)
-    made = skipped = failed = 0
-    for key in keys:
-        spec = SCENES[key]
-        dest = OUT_DIR / f"{key}.png"
-        if dest.exists() and not args.force:
-            print(f"· skip   {key}  ({dest.name} exists)")
-            skipped += 1
-            continue
-        print(f"… render {key} …", flush=True)
-        try:
-            res = client.images.generate(
-                model=args.model, prompt=ENGRAVING.format(desc=spec["desc"]),
-                size=spec["size"], quality=args.quality, n=1, background="opaque",
-            )
-            dest.write_bytes(base64.b64decode(res.data[0].b64_json))
-            print(f"✓ saved  {dest.name}  ({spec['size']})")
-            made += 1
-        except Exception as exc:
-            print(f"✗ failed {key}: {type(exc).__name__}: {exc}", file=sys.stderr)
-            failed += 1
-
-    print(f"\nDone — {made} made, {skipped} skipped, {failed} failed. → {OUT_DIR}")
-    return 1 if failed and not made else 0
+    jobs = [
+        Job(label=key, dest=OUT_DIR / f"{key}.png",
+            prompt=ENGRAVING.format(desc=SCENES[key]["desc"]), size=SCENES[key]["size"])
+        for key in keys
+    ]
+    return render_jobs(jobs, args, OUT_DIR)
 
 
 if __name__ == "__main__":

@@ -65,7 +65,7 @@ body > .nav{max-width:66.67vw;margin:22px auto 0;padding:0;border-bottom:0;}
    The ::after overlay sits exactly over the picture and casts the mat's (passe-
    partout) inset shadow onto it. .framed-img is the picture (or initials). */
 .framed{position:relative;display:block;background:#fcf9ee;
-      border:var(--frame,4px) solid #8a6a1e;          /* gilt frame                 */
+      border:var(--frame,4px) solid var(--ochre);          /* gilt frame                 */
       border-radius:1px;padding:var(--mat,18px);       /* the passe-partout mat      */
       box-shadow:0 0 0 1px #4a3a1e,                    /* crisp dark outer edge      */
                  inset 0 0 0 1px #cdb98c,              /* gilt bevel inside frame    */

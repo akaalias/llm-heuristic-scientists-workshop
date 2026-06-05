@@ -52,9 +52,9 @@
 
 /* ---- the domain expert, feeding the scoring battery into the loop --------- */
 /* a muted teal, set apart from the supervisor's rust. */
-.carrow-e{fill:none;stroke:#3f6e6e;stroke-width:1.8;}
-.cexpert{fill:#3f6e6e;}
-.cexpert-lbl{fill:#3f6e6e;font:600 15px/1 var(--serif);letter-spacing:.05em;
+.carrow-e{fill:none;stroke:var(--teal);stroke-width:1.8;}
+.cexpert{fill:var(--teal);}
+.cexpert-lbl{fill:var(--teal);font:600 15px/1 var(--serif);letter-spacing:.05em;
              font-feature-settings:"smcp" 1;}
 .cexpert-sub{fill:var(--muted);font:italic 13px/1 var(--serif);}
 

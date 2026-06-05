@@ -33,6 +33,7 @@ from pathlib import Path
 from problem_definition.check import check
 from problem_definition.evaluate import evaluate
 from problem_definition.scenarios import ALL_SCENARIOS
+from problem_definition.step_id import parse_step_id
 from discovery.placer import PriorityFn, construct
 from util.infra import ScheduleEntry
 
@@ -122,7 +123,7 @@ def save_gantt_png(schedule, scenario, heuristic_name: str, score: float, out_pa
             label = f"{station} #{slot}" if n_slots > 1 else station
             rows.append((label, [e for e in st_entries if slot_of[id(e)] == slot]))
 
-    order_ids = sorted({int(e.step.split(".")[0][1:]) for e in schedule})
+    order_ids = sorted({parse_step_id(e.step)[0] for e in schedule})
     cmap = plt.colormaps["tab10" if len(order_ids) <= 10 else "tab20"]
     color_of = {oid: cmap(i % cmap.N) for i, oid in enumerate(order_ids)}
 
@@ -131,9 +132,7 @@ def save_gantt_png(schedule, scenario, heuristic_name: str, score: float, out_pa
 
     for y, (_, st_entries) in enumerate(rows):
         for e in st_entries:
-            parts = e.step.split(".")
-            oid      = int(parts[0][1:])
-            dish_idx = int(parts[1][1:])     # 'd0' -> 0
+            oid, dish_idx, _ = parse_step_id(e.step)
             ax.barh(y, e.end - e.start, left=e.start, height=0.7,
                     color=color_of[oid], edgecolor="black", linewidth=0.6)
             if e.end - e.start >= 1.5:

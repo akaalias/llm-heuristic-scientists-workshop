@@ -3,6 +3,7 @@ choose which metric to optimize when comparing heuristics.
 """
 
 from problem_definition.model import RECIPES
+from problem_definition.step_id import dish_id, step_id
 from util.infra   import OrderSpec, ScheduleEntry
 
 
@@ -16,10 +17,10 @@ def evaluate(schedule: list[ScheduleEntry], orders: list[OrderSpec]) -> dict:
         oid = order.id
         order_ends: list[float] = []
         for d_idx, dish_name in enumerate(order.dishes):
-            slot = f"o{oid}.d{d_idx}"
+            slot = dish_id(oid, d_idx)
             dish_ends: list[float] = []
             for s_idx, _ in enumerate(RECIPES[dish_name]):
-                sid = f"o{oid}.d{d_idx}.s{s_idx}"
+                sid = step_id(oid, d_idx, s_idx)
                 if sid in by_sid:
                     dish_ends.append(by_sid[sid].end)
             if dish_ends:
@@ -41,9 +42,9 @@ def evaluate(schedule: list[ScheduleEntry], orders: list[OrderSpec]) -> dict:
     for order in orders:
         oid = order.id
         ends = [
-            dish_completion[f"o{oid}.d{d_idx}"]
+            dish_completion[dish_id(oid, d_idx)]
             for d_idx, _ in enumerate(order.dishes)
-            if f"o{oid}.d{d_idx}" in dish_completion
+            if dish_id(oid, d_idx) in dish_completion
         ]
         if len(ends) > 1:
             sync_penalty += max(ends) - min(ends)

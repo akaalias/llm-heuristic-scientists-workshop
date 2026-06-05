@@ -7,14 +7,7 @@
   if (!host) return;
   if (!nodes.length) { host.innerHTML = '<p class="empty">No experiments yet — run discovery.</p>'; return; }
 
-  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const fmt = (t) => Number.isInteger(t) ? String(t) : t.toFixed(1);
-  const xMark = (x, y, r) => `M${x-r},${y-r}L${x+r},${y+r}M${x+r},${y-r}L${x-r},${y+r}`;
-  function niceTicks(min, max, c){ if (max <= min) max = min + 1;
-    const raw = (max-min)/Math.max(1,c-1), mag = Math.pow(10, Math.floor(Math.log10(raw)));
-    const step = [1,2,5,10].map(m => m*mag).find(s => s >= raw); const out = [];
-    for (let v = Math.ceil(min/step)*step; v <= max+1e-9; v += step) out.push(Math.round(v*1000)/1000);
-    return out; }
+  // esc / fmt / xMark / niceTicks live in utils.js (loaded first).
 
   // adjacency
   const byKey = {}; nodes.forEach(n => byKey[n.key] = n);

@@ -1,6 +1,7 @@
 """Independent constraint validator. Verifies any schedule, regardless of how it was built."""
 
 from problem_definition.model import RECIPES
+from problem_definition.step_id import step_id
 from util.infra   import OrderSpec, ScheduleEntry
 
 
@@ -24,7 +25,7 @@ def check(schedule: list[ScheduleEntry], orders: list[OrderSpec], kitchen: dict[
         for d_idx, dish_name in enumerate(order.dishes):
             prev_sid: str | None = None
             for s_idx, (duration, station) in enumerate(RECIPES[dish_name]):
-                sid = f"o{oid}.d{d_idx}.s{s_idx}"
+                sid = step_id(oid, d_idx, s_idx)
                 expected[sid] = {
                     "duration": float(duration),
                     "station":  station,

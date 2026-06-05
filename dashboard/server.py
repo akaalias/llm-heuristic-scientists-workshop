@@ -39,6 +39,7 @@ from problem_definition.model import (RESTAURANT, RECIPES, MENU, MENU_SECTIONS,
                                       TEAM_SIDES, STATION_CAPACITY)
 from problem_definition.scenarios import (TRAINING_BATTERY, HIDDEN_TEST, STRESS,
                                           SUNDAY_GRAVY)
+from problem_definition.step_id import parse_step_id
 
 HERE        = Path(__file__).parent
 TEMPLATE    = HERE / "index.html"
@@ -277,15 +278,15 @@ PALE_COLORS  = ["#e3d6b0", "#cddedc", "#e8c9bf", "#d6cfe6", "#d3ddc4",
 
 def _order_of(step: str) -> int:
     try:
-        return int(step.split(".")[0][1:])   # "o1.d0.s2" → 1
-    except (ValueError, IndexError):
+        return parse_step_id(step)[0]        # "o1.d0.s2" → 1
+    except ValueError:
         return 0
 
 
 def _dish_of(step: str) -> int:
     try:
-        return int(step.split(".")[1][1:])   # "o1.d0.s2" → 0
-    except (ValueError, IndexError):
+        return parse_step_id(step)[1]        # "o1.d0.s2" → 0
+    except ValueError:
         return 0
 
 
@@ -344,6 +345,38 @@ def _fmtnum(t: float) -> str:
     return str(int(t)) if float(t).is_integer() else f"{t:g}"
 
 
+def _xf_linear(x0: float, x1: float, horizon: float):
+    """A time→x mapper for a plot: 0→x0, horizon→x1, linear in between."""
+    return lambda t: x0 + (t / horizon) * (x1 - x0)
+
+
+def _svg_wrap(body: list[str], css_class: str, w: float, h: float,
+              label: str | None = None) -> str:
+    """Wrap SVG element strings in a responsive <svg>. With a `label` the SVG is
+    exposed as an image to assistive tech; without one it is purely decorative."""
+    a11y = f'role="img" aria-label="{label}"' if label else 'aria-hidden="true"'
+    return (f'<svg class="{css_class}" viewBox="0 0 {w} {h}" '
+            f'preserveAspectRatio="xMidYMid meet" {a11y}>{"".join(body)}</svg>')
+
+
+def _gridlines(horizon: float, xf, y_top: float, y_bottom: float, label_y: float,
+               gg_class: str, label_class: str,
+               tick_class: str | None = None, tick_len: float = 4) -> list[str]:
+    """Vertical time gridlines with bottom-margin labels at each `_gantt_ticks`
+    value; optionally a short tick below the baseline. Shared by the Gantt and
+    overlay axes."""
+    g = []
+    for t in _gantt_ticks(horizon):
+        x = xf(t)
+        g.append(f'<line class="{gg_class}" x1="{x:.1f}" y1="{y_top}" x2="{x:.1f}" y2="{y_bottom}"/>')
+        if tick_class:
+            g.append(f'<line class="{tick_class}" x1="{x:.1f}" y1="{y_bottom}" '
+                     f'x2="{x:.1f}" y2="{y_bottom+tick_len}"/>')
+        g.append(f'<text class="{label_class}" x="{x:.1f}" y="{label_y:.1f}" '
+                 f'text-anchor="middle">{_fmtnum(t)}</text>')
+    return g
+
+
 def gantt_svg(sched: dict) -> str:
     """Render a built schedule as an inline SVG Gantt: one row per station slot,
     bars coloured by order with the dish index inside, and per-order arrival
@@ -361,13 +394,9 @@ def gantt_svg(sched: dict) -> str:
     x0, x1 = L, W - R
     plot_bottom = T + len(rows) * rowH
     H = plot_bottom + B
-    xf = lambda t: x0 + (t / horizon) * (x1 - x0)
+    xf = _xf_linear(x0, x1, horizon)
 
-    g = []
-    for t in _gantt_ticks(horizon):
-        x = xf(t)
-        g.append(f'<line class="gg" x1="{x:.1f}" y1="{T}" x2="{x:.1f}" y2="{plot_bottom}"/>')
-        g.append(f'<text class="gx" x="{x:.1f}" y="{H-8}" text-anchor="middle">{_fmtnum(t)}</text>')
+    g = _gridlines(horizon, xf, T, plot_bottom, H - 8, "gg", "gx")
     # when each order actually finishes (last end across all its steps) — used to
     # flag whether it met or missed its due time
     finish: dict[int, float] = {}
@@ -419,8 +448,7 @@ def gantt_svg(sched: dict) -> str:
                 g.append(f'<text class="gd" x="{bx+bw/2:.1f}" y="{by+bh/2+3:.1f}" '
                          f'text-anchor="middle">{dish+1}</text>')
     g.append(f'<line class="ga" x1="{x0}" y1="{plot_bottom}" x2="{x1}" y2="{plot_bottom}"/>')
-    return (f'<svg class="gantt" viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" '
-            f'role="img" aria-label="schedule gantt">{"".join(g)}</svg>')
+    return _svg_wrap(g, "gantt", W, H, label="schedule gantt")
 
 
 def load_schedule(csv_dir: Path, fname: str) -> dict | None:
@@ -461,7 +489,7 @@ def gantt_thumb(sched: dict) -> str:
     W, pad, rowH, barH = 240, 3, 8, 6
     x0, x1 = pad, W - pad
     H = pad * 2 + len(rows) * rowH
-    xf = lambda t: x0 + (t / horizon) * (x1 - x0)
+    xf = _xf_linear(x0, x1, horizon)
 
     g = []
     for y, (_label, items) in enumerate(rows):
@@ -472,8 +500,7 @@ def gantt_thumb(sched: dict) -> str:
             oid = _order_of(e["step"])
             g.append(f'<rect x="{bx:.1f}" y="{cy+1:.1f}" width="{bw:.1f}" height="{barH}" rx="1" '
                      f'fill="{pale[oid]}" stroke="{color[oid]}" stroke-width="0.5"/>')
-    return (f'<svg class="thumb" viewBox="0 0 {W} {H}" preserveAspectRatio="xMidYMid meet" '
-            f'role="img" aria-label="schedule thumbnail">{"".join(g)}</svg>')
+    return _svg_wrap(g, "thumb", W, H, label="schedule thumbnail")
 
 
 # ---- overlay stage: many experiments stacked on ONE shared grid ------------
@@ -507,8 +534,7 @@ def overlay_geometry(scheds: list[dict]) -> tuple[list[str], dict[str, int], flo
 
 
 def _ov_x(horizon: float):
-    x0, x1 = OV_L, OV_W - OV_R
-    return lambda t: x0 + (t / horizon) * (x1 - x0)
+    return _xf_linear(OV_L, OV_W - OV_R, horizon)
 
 
 def overlay_axis(labels: list[str], horizon: float) -> str:
@@ -519,14 +545,10 @@ def overlay_axis(labels: list[str], horizon: float) -> str:
     H = plot_bottom + OV_B
     x0, x1 = OV_L, OV_W - OV_R
     xf = _ov_x(horizon)
-    g = []
     # faint gridlines + a small tick below the baseline at each labelled time;
     # numbers ride just under the ticks, the unit named once at the right.
-    for t in _gantt_ticks(horizon):
-        x = xf(t)
-        g.append(f'<line class="ov-gg" x1="{x:.1f}" y1="{OV_T}" x2="{x:.1f}" y2="{plot_bottom}"/>')
-        g.append(f'<line class="ov-tick" x1="{x:.1f}" y1="{plot_bottom}" x2="{x:.1f}" y2="{plot_bottom+4}"/>')
-        g.append(f'<text class="ov-gx" x="{x:.1f}" y="{plot_bottom+17:.1f}" text-anchor="middle">{_fmtnum(t)}</text>')
+    g = _gridlines(horizon, xf, OV_T, plot_bottom, plot_bottom + 17,
+                   "ov-gg", "ov-gx", tick_class="ov-tick")
     g.append(f'<text class="ov-axis-title" x="{x1:.1f}" y="{plot_bottom+33:.1f}" '
              f'text-anchor="end">minutes from first seating</text>')
     for y, label in enumerate(labels):
@@ -534,8 +556,7 @@ def overlay_axis(labels: list[str], horizon: float) -> str:
         g.append(f'<text class="ov-gy" x="{OV_L-12}" y="{cy+OV_ROWH/2+3:.1f}" '
                  f'text-anchor="end">{html.escape(label)}</text>')
     g.append(f'<line class="ov-ga" x1="{x0}" y1="{plot_bottom}" x2="{x1}" y2="{plot_bottom}"/>')
-    return (f'<svg class="ov-axis-svg" viewBox="0 0 {OV_W} {H}" preserveAspectRatio="xMidYMid meet" '
-            f'aria-hidden="true">{"".join(g)}</svg>')
+    return _svg_wrap(g, "ov-axis-svg", OV_W, H)
 
 
 # met / missed colours for the overlaid deadline lines (no ✓/× marks here —
@@ -562,8 +583,7 @@ def overlay_bars(sched: dict, labels: list[str], base: dict[str, int], horizon: 
             oid = _order_of(e["step"])
             g.append(f'<rect x="{bx:.1f}" y="{cy+4:.1f}" width="{bw:.1f}" height="{barH}" rx="1.5" '
                      f'fill="{pale[oid]}" stroke="{color[oid]}" stroke-width="0.75"/>')
-    return (f'<svg class="ov-bars-svg" viewBox="0 0 {OV_W} {H}" preserveAspectRatio="xMidYMid meet" '
-            f'aria-hidden="true">{"".join(g)}</svg>')
+    return _svg_wrap(g, "ov-bars-svg", OV_W, H)
 
 
 def overlay_deadlines(sched: dict, labels: list[str], horizon: float) -> str:
@@ -588,8 +608,7 @@ def overlay_deadlines(sched: dict, labels: list[str], horizon: float) -> str:
         x = xf(due)
         g.append(f'<line class="ov-due" x1="{x:.1f}" y1="{OV_T}" x2="{x:.1f}" y2="{plot_bottom}" '
                  f'stroke="{OV_MET if met else OV_MISS}" stroke-width="2" stroke-dasharray="4 3"/>')
-    return (f'<svg class="ov-due-svg" viewBox="0 0 {OV_W} {H}" preserveAspectRatio="xMidYMid meet" '
-            f'aria-hidden="true">{"".join(g)}</svg>')
+    return _svg_wrap(g, "ov-due-svg", OV_W, H)
 
 
 def _lat_key(v) -> float:

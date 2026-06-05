@@ -10,7 +10,7 @@
 
 /* ---- the failing-nights figure, centred in its own section --------------- */
 .fail-fig{margin:16px auto 0;max-width:760px;}
-.fail-fig img{display:block;width:100%;height:auto;padding:28px;background:#fcfbf2;
+.fail-fig img{display:block;width:100%;height:auto;padding:28px;background:var(--bg-pale);
               border:1px solid var(--rule);border-radius:2px;
               box-shadow:0 2px 10px rgba(45,33,15,.13);}
 .fail-fig figcaption{font:italic 14px/1.5 var(--serif);color:var(--muted);text-align:center;
@@ -18,7 +18,7 @@
 .fail-fig figcaption .x{color:var(--accent);font-style:normal;}
 .fail-fig--empty{display:flex;align-items:center;justify-content:center;text-align:center;
                  min-height:280px;border:1px dashed var(--rule);border-radius:2px;
-                 color:var(--faint);font:italic 14px/1.6 var(--serif);background:#fcfbf2;}
+                 color:var(--faint);font:italic 14px/1.6 var(--serif);background:var(--bg-pale);}
 .fail-fig--empty code{font:12px/1.6 var(--mono);color:var(--muted);font-style:normal;}
 
 /* ---- hero: the question -------------------------------------------------- */
@@ -62,7 +62,7 @@
 .line-row--bn .ln-name{font-weight:600;}
 /* the recipes that route through each station — small, light dish chips */
 .ln-dishes{display:flex;flex-wrap:wrap;gap:5px 6px;}
-.ln-dish{font:12px/1.25 var(--serif);color:var(--muted);background:#fcfbf2;
+.ln-dish{font:12px/1.25 var(--serif);color:var(--muted);background:var(--bg-pale);
          border:1px solid var(--rule);border-radius:2px;padding:2px 7px;white-space:nowrap;}
 .ln-dish--none{border:0;background:none;color:var(--faint);padding:0;}
 .ln-pips{display:flex;gap:6px;align-items:center;}

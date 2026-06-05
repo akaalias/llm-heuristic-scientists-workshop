@@ -22,7 +22,7 @@ from pathlib import Path
 
 from PIL import Image
 
-STATIC = Path(__file__).resolve().parent.parent / "dashboard" / "static"
+from tools.paths import STATIC_DIR as STATIC
 
 # category → (longest-edge px for the web variant, output mode)
 CONFIG = {

@@ -27,8 +27,8 @@ import shutil
 from pathlib import Path
 
 from dashboard import server
+from tools.paths import ROOT
 
-ROOT        = Path(__file__).resolve().parent.parent
 DEFAULT_OUT = ROOT / "docs"
 
 # (output filename, template path, render fn, passes a `target` arg)
