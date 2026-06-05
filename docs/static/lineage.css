@@ -13,7 +13,7 @@
              border-radius:9px 9px 0 0;}
 /* full-bleed diagram: breaks out of the reading column to the viewport,
    scrolls sideways when there are many experiments */
-#diagram{overflow-x:auto;border-top:1px solid var(--rule);margin-top:14px;
+#diagram{overflow-x:auto;margin-top:14px;
          padding:24px 28px 16px;scrollbar-width:thin;scrollbar-color:var(--rule) transparent;}
 #diagram::-webkit-scrollbar{height:6px;}
 #diagram::-webkit-scrollbar-thumb{background:var(--rule);border-radius:3px;}
