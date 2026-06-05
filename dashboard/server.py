@@ -1096,6 +1096,15 @@ STATION_VIEW = {
     "waiting": ("Holding shelf",    "resting and cooling — no cook tied up",    False),
 }
 
+# the recipes made concrete: which dishes route through each station, in menu
+# order — read straight off RECIPES so the table can't drift from the kitchen.
+STATION_DISHES: dict[str, list[str]] = {}
+for _dish, _steps in RECIPES.items():
+    for _dur, _station in _steps:
+        STATION_DISHES.setdefault(_station, [])
+        if _dish not in STATION_DISHES[_station]:
+            STATION_DISHES[_station].append(_dish)
+
 
 # which station each test night leans on hardest (for the night card chip).
 STRESS_TAG = {
@@ -1126,10 +1135,14 @@ def render_stations(caps: dict) -> str:
             cls = "pip pip--bn" if bottleneck else "pip"
             pips = "".join(f'<span class="{cls}"></span>' for _ in range(n))
         tag = '<span class="bottleneck">bottleneck</span>' if bottleneck else ""
+        dishes = STATION_DISHES.get(name, [])
+        chips = ("".join(f'<span class="ln-dish">{html.escape(d)}</span>' for d in dishes)
+                 if dishes else '<span class="ln-dish ln-dish--none">—</span>')
         rows.append(
             f'<div class="line-row{" line-row--bn" if bottleneck else ""}">'
             f'<span class="ln-name">{html.escape(label)}{tag}</span>'
             f'<span class="ln-pips" title="{n} at once">{pips}</span>'
+            f'<span class="ln-dishes">{chips}</span>'
             f'<span class="ln-note">{html.escape(note)}</span></div>')
     return "".join(rows)
 

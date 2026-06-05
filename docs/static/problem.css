@@ -56,10 +56,15 @@
 /* ---- what's fixed: the line at a glance (capacity pips) ------------------ */
 .line-cap{font:italic 14px/1.4 var(--serif);color:var(--faint);margin:12px 0 2px;}
 .line{margin-top:6px;border-top:1px solid var(--rule);}
-.line-row{display:grid;grid-template-columns:200px 84px 1fr;gap:18px;align-items:center;
+.line-row{display:grid;grid-template-columns:200px 60px 1fr 1.2fr;gap:18px;align-items:center;
           padding:10px 0;border-bottom:1px solid var(--rule-soft);}
 .ln-name{font-size:17px;color:var(--ink);}
 .line-row--bn .ln-name{font-weight:600;}
+/* the recipes that route through each station — small, light dish chips */
+.ln-dishes{display:flex;flex-wrap:wrap;gap:5px 6px;}
+.ln-dish{font:12px/1.25 var(--serif);color:var(--muted);background:#fcfbf2;
+         border:1px solid var(--rule);border-radius:2px;padding:2px 7px;white-space:nowrap;}
+.ln-dish--none{border:0;background:none;color:var(--faint);padding:0;}
 .ln-pips{display:flex;gap:6px;align-items:center;}
 .pip{width:11px;height:11px;border-radius:50%;background:var(--ink);display:inline-block;
      flex:0 0 auto;}
