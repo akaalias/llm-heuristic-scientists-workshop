@@ -693,9 +693,18 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
         # choice stays faint at 1/cap.
         OV_NORMAL_CAP = 40
         normal_op = f"{1.0/min(n, OV_NORMAL_CAP):.4f}" if n else "1"
+        # Multiply has the mirror failure: each agreeing layer darkens the stack
+        # geometrically, so at a flat per-layer opacity even ~5 overlapping
+        # layers saturate to black and a 100-deep stack can't tell a strong
+        # majority from a small cluster. Taper past the same cap so ~OV_NORMAL_CAP
+        # agreeing layers reach the dark a full stack used to — saturation tracks
+        # count, not n. At or below the cap it stays the tuned 0.55.
+        OV_MULT_OP = 0.55
+        mult_op = (f"{min(OV_MULT_OP, OV_MULT_OP * OV_NORMAL_CAP / n):.4f}"
+                   if n else f"{OV_MULT_OP}")
         modes = [
             ("normal",   "Normal",     normal_op),
-            ("multiply", "Multiply",   "0.55"),
+            ("multiply", "Multiply",   mult_op),
         ]
         btns = "".join(
             f'<button class="ov-mode{" is-on" if i == 0 else ""}" type="button" '
