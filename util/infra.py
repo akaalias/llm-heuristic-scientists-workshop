@@ -4,7 +4,7 @@ LLM-authored heuristic never sees any of these — they live outside its
 priority(step, state) contract.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -23,10 +23,19 @@ class OrderSpec:
 
 @dataclass
 class Scenario:
-    """A problem instance: a kitchen (station -> capacity) and a list of orders."""
+    """A problem instance: a kitchen (station -> capacity) and a list of orders.
+
+    `name` is the stable identifier (used as a key for grouping schedules,
+    filenames, etc. — don't change it lightly). `title` and `blurb` are optional
+    flavour: a human-readable name and a one-line, observer's-eye sketch of what
+    that service looks like from the dining room. Neither is seen by the
+    scheduler or the heuristic — they're purely for the dashboard.
+    """
     name:    str
     kitchen: dict[str, int]
     orders:  list[OrderSpec]
+    title:   str = ""
+    blurb:   str = ""
 
 
 @dataclass

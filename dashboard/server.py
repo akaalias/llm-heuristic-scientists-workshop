@@ -28,20 +28,26 @@ import math
 import os
 import re
 import time
+import unicodedata
 from functools import partial
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
+from problem_definition.model import RESTAURANT, RECIPES, MENU, MENU_SECTIONS, TEAM_SIDES
+
 HERE        = Path(__file__).parent
 TEMPLATE    = HERE / "index.html"
 GRID_TMPL   = HERE / "grid.html"
 LINEAGE_TMPL = HERE / "lineage.html"
+RESTO_TMPL  = HERE / "restaurant.html"
 STATIC_DIR  = HERE / "static"          # shared CSS/JS, served from /static/
 DEFAULT_CSV = HERE.parent / "heuristics" / "discovered" / "runs.csv"
 
 STATIC_TYPES = {".css": "text/css", ".js": "text/javascript",
-                ".svg": "image/svg+xml", ".json": "application/json"}
+                ".svg": "image/svg+xml", ".json": "application/json",
+                ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp"}
+TEXT_SUFFIXES = {".css", ".js", ".svg", ".json"}   # binary assets get no charset
 
 POLL_S      = 1.0   # how often the SSE loop checks the CSV for changes
 PING_EVERY  = 10    # send an SSE comment every Nth idle poll (detects drops)
@@ -582,6 +588,225 @@ def render_lineage_page(template: str, csv_path: Path, target: float) -> str:
             .replace("<!--SUB-->", html.escape(sub)))
 
 
+# ---- restaurant one-pager (public face; static metadata, no CSV) ----------
+
+def render_ratings(ratings: dict) -> str:
+    """The ratings strip. Each source becomes a labelled value with a sub-line;
+    layout adapts to whichever keys RESTAURANT['ratings'] happens to carry."""
+    def cell(src: str, val: str, out: str, sub: str) -> str:
+        out_html = f'<span class="r-out"> / {html.escape(out)}</span>' if out else ""
+        sub_html = f'<div class="r-sub">{html.escape(sub)}</div>' if sub else ""
+        return (f'<div class="rating"><div class="r-src">{html.escape(src)}</div>'
+                f'<div class="r-val">{html.escape(val)}{out_html}</div>{sub_html}</div>')
+
+    out = []
+    for key, r in ratings.items():
+        if "award" in r:   # michelin-style: an award, not a score
+            sub = f"since {r['since']}" if r.get("since") else ""
+            out.append(cell(key.title(), r["award"], "", sub))
+        else:              # numeric score out of a max, with a volume/source sub-line
+            reviews = r.get("reviews")
+            sub = f"{reviews:,} reviews" if reviews else (r.get("source", "") or "")
+            label = "Critics" if key == "local_critics" else key.title()
+            out.append(cell(label, f"{r.get('score','')}", str(r.get("out_of", "")), sub))
+    return "".join(out)
+
+
+def render_menu(recipes: dict, menu: dict, sections: list[str]) -> str:
+    """The à la carte menu, grouped into sections. Driven by RECIPES (what the
+    kitchen can actually cook), looking each dish up in MENU for its name, blurb
+    and price; a dish with no menu copy is skipped rather than half-rendered."""
+    by_section: dict[str, list[str]] = {s: [] for s in sections}
+    extras: dict[str, list[str]] = {}
+    for dish in recipes:
+        m = menu.get(dish)
+        if not m:
+            continue
+        item = (
+            f'<div class="menu-item"><div class="menu-item-top">'
+            f'<span class="mi-name">{html.escape(m["name"])}</span>'
+            f'<span class="mi-dots"></span>'
+            f'<span class="mi-price">&euro;{html.escape(str(m["price"]))}</span></div>'
+            f'<div class="mi-blurb">{html.escape(m["blurb"])}</div></div>')
+        bucket = by_section if m.get("section") in by_section else extras
+        bucket.setdefault(m.get("section", "More"), []).append(item)
+
+    ordered = sections + [s for s in extras if s not in sections]
+    groups = []
+    for s in ordered:
+        items = by_section.get(s) or extras.get(s) or []
+        if not items:
+            continue
+        groups.append(f'<div class="menu-group"><h3 class="menu-group-h">{html.escape(s)}</h3>'
+                      f'{"".join(items)}</div>')
+    return "".join(groups)
+
+
+PORTRAIT_DIR = STATIC_DIR / "portraits"   # PNGs from tools.generate_portraits
+SCENE_DIR    = STATIC_DIR / "scenes"      # PNGs from tools.generate_scenes
+MARK_DIR     = STATIC_DIR / "marks"       # PNGs from tools.generate_mark
+
+
+def _framed(inner: str, variant: str, tag: str = "span", extra: str = "") -> str:
+    """Wrap a picture (or initials monogram) in the shared framed-picture markup:
+    a gilt frame + wide passe-partout mat with inset shadows, styled by `.framed`
+    and the `.framed--<variant>` modifier. The frame/mat live on the wrapper and a
+    ::after overlay casts the mat's shadow onto the picture (see restaurant.css)."""
+    cls = f"framed framed--{variant}" + (f" {extra}" if extra else "")
+    return f'<{tag} class="{cls}">{inner}</{tag}>'
+
+
+def scene_figure(name: str, alt: str, side: str) -> str:
+    """A framed scene <figure> (engraving) if static/scenes/<name>.png exists,
+    else '' so the section collapses to text only. `side` is 'left' or 'right'."""
+    if not (SCENE_DIR / f"{name}.png").is_file():
+        return ""
+    img = (f'<img class="framed-img" src="/static/scenes/{name}.png" '
+           f'alt="{html.escape(alt)}" loading="lazy">')
+    return _framed(img, "scene", tag="figure", extra=f"scene-fig scene-fig--{side}")
+
+
+def mark_img(name: str, cls: str) -> str:
+    """A signature mark (e.g. the fox) from static/marks/<name>.png, or '' if absent.
+    Transparent PNG — shown as-is, not framed."""
+    if not (MARK_DIR / f"{name}.png").is_file():
+        return ""
+    return f'<img class="{cls}" src="/static/marks/{name}.png" alt="" aria-hidden="true">'
+
+
+def _portrait_slug(name: str) -> str:
+    """'Élise Marchand' -> 'elise_marchand'. Must match tools.generate_portraits."""
+    folded = unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "_", folded.lower()).strip("_")
+
+
+def _initials(name: str) -> str:
+    parts = [w for w in re.split(r"\s+", name or "") if w]
+    return "".join(w[0] for w in (parts[:1] + parts[-1:])).upper() if parts else "·"
+
+
+def avatar(name: str, variant: str) -> str:
+    """A framed portrait if static/portraits/<slug>.png exists, else a framed
+    initials monogram so the layout is identical with or without generated art.
+    `variant` is 'avatar' (team card) or 'chef' (featured)."""
+    slug = _portrait_slug(name)
+    if slug and (PORTRAIT_DIR / f"{slug}.png").is_file():
+        inner = (f'<img class="framed-img" src="/static/portraits/{slug}.png" '
+                 f'alt="{html.escape(name)}" loading="lazy">')
+    else:
+        inner = (f'<span class="framed-img framed-img--mono" aria-hidden="true">'
+                 f'{html.escape(_initials(name))}</span>')
+    return _framed(inner, variant)
+
+
+def render_team(people: list[dict], sides: list[str], exclude: set[str] | None = None) -> str:
+    """The team roster, grouped into Kitchen / Front of house. Each person is a
+    card (name, role, years, note, bio); names in `exclude` are skipped (the chef
+    is featured separately). A `side` not in `sides` falls into its own trailing
+    group, and a group with nobody left in it is dropped."""
+    exclude = exclude or set()
+    def card(p: dict) -> str:
+        since = f'<span class="m-since">since {html.escape(str(p["since"]))}</span>' if p.get("since") else ""
+        note  = f'<div class="m-note">{html.escape(p["note"])}</div>' if p.get("note") else ""
+        bio   = f'<div class="m-bio">{html.escape(p["bio"])}</div>' if p.get("bio") else ""
+        return (f'<div class="member">{avatar(p.get("name",""), "avatar")}'
+                f'<div class="m-body"><div class="m-top">'
+                f'<span class="m-name">{html.escape(p.get("name",""))}</span>{since}</div>'
+                f'<div class="m-role">{html.escape(p.get("role",""))}</div>{note}{bio}</div></div>')
+
+    people = [p for p in people if p.get("name") not in exclude]
+    ordered = sides + [s for s in dict.fromkeys(p.get("side", "") for p in people) if s and s not in sides]
+    groups = []
+    for s in ordered:
+        members = [p for p in people if p.get("side", "") == s]
+        if not members:
+            continue
+        groups.append(f'<div class="team-group"><h3 class="team-group-h">{html.escape(s)}</h3>'
+                      f'<div class="team">{"".join(card(p) for p in members)}</div></div>')
+    return "".join(groups)
+
+
+def _chef(people: list[dict]) -> dict | None:
+    """The featured chef: the first person whose role names them an owner-chef
+    (falls back to any 'chef', then None)."""
+    return (next((p for p in people if "chef" in p.get("role", "").lower()
+                                    and "owner" in p.get("role", "").lower()), None)
+            or next((p for p in people if "chef" in p.get("role", "").lower()), None))
+
+
+def render_chef(people: list[dict]) -> str:
+    """The featured 'The chef' block: name, role and full biography."""
+    c = _chef(people)
+    if not c:
+        return ""
+    return (f'<div class="chef">{avatar(c.get("name",""), "chef")}'
+            f'<div class="chef-text">'
+            f'<p class="chef-name">{html.escape(c.get("name",""))}</p>'
+            f'<p class="chef-role">{html.escape(c.get("role",""))}</p>'
+            f'<p class="chef-bio">{html.escape(c.get("bio","") or c.get("note",""))}</p></div></div>')
+
+
+def _welcome_signature(people: list[dict]) -> str:
+    """Sign the owner's note: the first person whose role names them an owner."""
+    owner = next((p for p in people if "owner" in p.get("role", "").lower()), None)
+    if not owner:
+        return ""
+    role = owner.get("role", "").split("·")[0].strip()   # 'Chef-owner', not the co-owner tail
+    return f'— {owner.get("name","")}, {role}'
+
+
+def _address_line(loc: dict) -> str:
+    """A single-line address from the location block: '279 Water Street, at Dover
+    Street · South Street Seaport · New York, NY'. Missing parts drop out."""
+    street = ", ".join(p for p in (loc.get("address"), loc.get("cross_street")) if p)
+    return " · ".join(p for p in (street, loc.get("neighbourhood"), loc.get("city")) if p)
+
+
+def render_hours(hours: list) -> str:
+    """The opening-hours rows: (days label, time range) → a days/time line each;
+    a 'Closed' time is dimmed."""
+    rows = []
+    for days, t in hours:
+        closed = " hours-closed" if str(t).strip().lower() == "closed" else ""
+        rows.append(f'<div class="hours-row{closed}">'
+                    f'<span class="hr-days">{html.escape(str(days))}</span>'
+                    f'<span class="hr-time">{html.escape(str(t))}</span></div>')
+    return "".join(rows)
+
+
+def render_phone(phone: str) -> str:
+    """A tappable phone number: a tel: link (US +1 for a 10-digit number)."""
+    if not phone:
+        return ""
+    digits = re.sub(r"\D", "", phone)
+    tel = f"+1{digits}" if len(digits) == 10 else f"+{digits}"
+    return f'<a href="tel:{tel}">{html.escape(phone)}</a>'
+
+
+def render_restaurant_page(template: str, csv_path: Path) -> str:
+    """The public one-pager. csv_path is unused (the page is pure static
+    metadata) but kept in the signature to match serve_static_page's contract."""
+    r = RESTAURANT
+    loc = r.get("location", {})
+    return (template
+            .replace("<!--NAME-->",        html.escape(r["name"]))
+            .replace("<!--STYLE-->",       html.escape(r["style"]))
+            .replace("<!--TAGLINE-->",     html.escape(r["tagline"]))
+            .replace("<!--WELCOME-->",     html.escape(r["welcome"]))
+            .replace("<!--WELCOME_SIG-->", html.escape(_welcome_signature(r["people"])))
+            .replace("<!--HISTORY-->",     html.escape(r["history"]))
+            .replace("<!--ADDRESS-->",     html.escape(_address_line(loc)))
+            .replace("<!--LOCATION-->",    html.escape(loc.get("story", "")))
+            .replace("<!--HOURS-->",       render_hours(r.get("hours", [])))
+            .replace("<!--RESERVATION-->", html.escape(r.get("reservation", "")))
+            .replace("<!--PHONE-->",       render_phone(r.get("phone", "")))
+            .replace("<!--RATINGS-->",     render_ratings(r["ratings"]))
+            .replace("<!--MENU-->",        render_menu(RECIPES, MENU, MENU_SECTIONS))
+            .replace("<!--CHEF-->",        render_chef(r["people"]))
+            .replace("<!--TEAM-->",        render_team(r["people"], TEAM_SIDES,
+                                                       exclude={(_chef(r["people"]) or {}).get("name")})))
+
+
 def render_grid_page(template: str, csv_path: Path) -> str:
     rows = load_rows(csv_path)
     n = sum(1 for r in rows if schedule_samples(load_schedule(csv_path.parent, r.get("file", ""))))
@@ -617,6 +842,8 @@ class Handler(BaseHTTPRequestHandler):
             self.serve_static_asset()
         elif self.path in ("/grid", "/grid.html"):
             self.serve_static_page(GRID_TMPL, render_grid_page)
+        elif self.path in ("/restaurant", "/restaurant.html"):
+            self.serve_static_page(RESTO_TMPL, render_restaurant_page)
         elif self.path in ("/lineage", "/lineage.html"):
             self.serve_static_page(LINEAGE_TMPL, render_lineage_page, with_target=True)
         elif self.path in ("/", "/index.html"):
@@ -651,14 +878,18 @@ class Handler(BaseHTTPRequestHandler):
         self._respond(json.dumps(detail).encode("utf-8"), "application/json; charset=utf-8")
 
     def serve_static_asset(self):
-        """Serve a shared CSS/JS file from static/. Path-traversal safe."""
+        """Serve a shared asset (CSS/JS/SVG/JSON or an image) from static/, incl.
+        subdirectories like portraits/. Path-traversal safe."""
         name = urlparse(self.path).path[len("/static/"):]
         target = (STATIC_DIR / name).resolve()
-        if STATIC_DIR.resolve() not in target.parents or not target.is_file():
+        static_root = STATIC_DIR.resolve()
+        if static_root not in target.parents or not target.is_file():
             self.send_error(404)
             return
         ctype = STATIC_TYPES.get(target.suffix, "application/octet-stream")
-        self._respond(target.read_bytes(), f"{ctype}; charset=utf-8")
+        if target.suffix in TEXT_SUFFIXES:
+            ctype += "; charset=utf-8"
+        self._respond(target.read_bytes(), ctype)
 
     def stream_events(self):
         """Server-Sent Events: push the rendered rows whenever the CSV changes.
