@@ -664,8 +664,18 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
         ov_id = "ov-" + re.sub(r"[^a-zA-Z0-9_-]", "-", name)
         # the blend-mode toolbar — Photoshop-style layer styles to hunt for the
         # most legible default. data-op is the per-layer opacity that mode wants.
+        #
+        # Normal is source-over, so a stack of k agreeing layers at alpha 1/n
+        # only reaches 1-(1-1/n)^k — saturation tracks the *fraction* k/n, not
+        # the count. Past ~100 candidates even a strong majority is a small
+        # fraction, so consensus blocks wash out toward the white background.
+        # Cap the divisor so a solid cluster saturates on absolute count: with
+        # OV_NORMAL_CAP agreeing layers a block already hits ~63%, while a lone
+        # choice stays faint at 1/cap.
+        OV_NORMAL_CAP = 40
+        normal_op = f"{1.0/min(n, OV_NORMAL_CAP):.4f}" if n else "1"
         modes = [
-            ("normal",   "Normal",     f"{1.0/n:.4f}" if n else "1"),
+            ("normal",   "Normal",     normal_op),
             ("multiply", "Multiply",   "0.55"),
         ]
         btns = "".join(
@@ -681,7 +691,7 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
             f'<span class="ov-sub">all {n} experiments, overlaid</span></div>'
             f'{toolbar}'
             f'<button class="ov-close" type="button" data-ov-close aria-label="Close">&times;</button></header>'
-            f'<div class="ov-stage" data-blend="normal" style="--ov-op:{1.0/n:.4f};--ov-op-due:{1.0/n:.4f}">'
+            f'<div class="ov-stage" data-blend="normal" style="--ov-op:{normal_op};--ov-op-due:{1.0/n:.4f}">'
             f'{"".join(bar_layers)}'
             f'{"".join(due_layers)}'
             f'<div class="ov-axis">{overlay_axis(labels, horizon)}</div>'
