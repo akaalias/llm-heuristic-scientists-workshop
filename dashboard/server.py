@@ -781,9 +781,9 @@ NAV_ITEMS = [
     ("restaurant", "/",                   "The restaurant",              False),
     ("problem",    "/problem",            "The problem",                 False),
     ("approach",   "/approach",           "Our approach",                False),
-    ("dashboard",  "/research-dashboard", "Research Dashboard",          True),
-    ("grid",       "/research-grid",      "Research Candidate Grid",     True),
-    ("lineage",    "/research-lineage",   "Research Experiment Lineage", True),
+    ("dashboard",  "/research-dashboard", "Dashboard",          True),
+    ("grid",       "/research-grid",      "Candidate grid",     True),
+    ("lineage",    "/research-lineage",   "Experiment lineage", True),
 ]
 
 
@@ -792,7 +792,11 @@ def render_nav(current: str) -> str:
     renders as a non-link, marked active, so it stays visible instead of
     vanishing; the research views are indented under 'Our approach'."""
     out = []
+    prev_sub = False
     for key, href, label, sub in NAV_ITEMS:
+        if sub and not prev_sub:   # a quiet divider between the main pages and the research views
+            out.append('<span class="nav-div" aria-hidden="true"></span>')
+        prev_sub = sub
         cls = " ".join(c for c, on in (("nav-sub", sub), ("nav-here", key == current)) if on)
         attr = f' class="{cls}"' if cls else ""
         out.append(f'<span{attr}>{html.escape(label)}</span>' if key == current

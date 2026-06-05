@@ -33,17 +33,17 @@ body{
 .eyebrow{font:italic 16px/1 var(--serif);color:var(--accent);letter-spacing:.01em;margin-bottom:13px;}
 .dash-head h1{font-weight:400;font-size:34px;line-height:1.12;letter-spacing:-.01em;margin:0 0 8px;}
 .dash-head .sub{color:var(--muted);font-style:italic;font-size:18px;margin:0 0 10px;max-width:64ch;}
-/* page navigation — pinned to the top-left corner, persistent on scroll. The
-   page body is centred (66.67vw), so the stacked links sit in the left gutter;
-   below 1100px the gutter shrinks, so the menu gets a quiet paper backing. */
-.nav{position:fixed;top:22px;left:24px;z-index:40;margin:0;
-     display:flex;flex-direction:column;gap:5px;
-     font:13.5px/1.25 var(--serif);}
-.nav a{color:var(--accent);text-decoration:none;white-space:nowrap;width:fit-content;
+/* page navigation — a horizontal bar at the top of the centred measure, in
+   normal flow above the content so it never overlaps it. The research views
+   sit after a quiet divider, set off from the three main pages. */
+.nav{display:flex;flex-wrap:wrap;align-items:center;gap:7px 16px;
+     margin:0 0 24px;padding-bottom:12px;border-bottom:1px solid var(--rule);
+     font:14px/1.3 var(--serif);}
+.nav a{color:var(--accent);text-decoration:none;white-space:nowrap;
        border-bottom:1px solid transparent;}
 .nav a:hover{border-bottom-color:var(--accent);}
-.nav .nav-sub{margin-left:15px;}    /* the research views, nested under "Our approach" */
 .nav .nav-here{color:var(--ink);cursor:default;}  /* current page — shown & marked active, not a link */
+.nav-div{flex:0 0 auto;width:1px;height:15px;background:var(--rule);margin:0 2px;}  /* main | research */
 
 /* shared lead-in on the research pages — ties each back to the restaurant and the
    problem. Outer box matches the header measure so its left edge lines up. */
