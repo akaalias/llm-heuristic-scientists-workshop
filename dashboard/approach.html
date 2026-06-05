@@ -49,6 +49,9 @@
         <marker id="cyc-arrow-h" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
           <path d="M0,0 L10,5 L0,10 z" fill="#8c2f1f"/>
         </marker>
+        <marker id="cyc-arrow-e" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#3f6e6e"/>
+        </marker>
       </defs>
       <!-- clockwise arrows between the four nodes -->
       <path class="carrow" marker-end="url(#cyc-arrow)" d="M346.8,99.1 A125,125 0 0 1 415.9,168.2"/>
@@ -85,6 +88,12 @@
       <text class="chuman-sub" x="632" y="92" text-anchor="end">curates the inspiration</text>
       <circle class="chuman" cx="505" cy="75" r="5"/>
       <path class="carrow-h" marker-end="url(#cyc-arrow-h)" d="M505,75 C436,82 374,88 316,84"/>
+      <!-- the domain expert: authors the battery the loop scores against, into SCORE -->
+      <text class="cexpert-lbl" x="8" y="350" text-anchor="start">DOMAIN EXPERT</text>
+      <text class="cexpert-sub" x="8" y="368" text-anchor="start">writes the training &amp;</text>
+      <text class="cexpert-sub" x="8" y="384" text-anchor="start">validation nights</text>
+      <circle class="cexpert" cx="172" cy="360" r="5"/>
+      <path class="carrow-e" marker-end="url(#cyc-arrow-e)" d="M172,360 C212,360 252,352 288,346"/>
     </svg>
         <p class="cycle-cap">Each round keeps only what beats the best so far, and builds the next
         <span class="gr">groundrule</span> on it.</p>

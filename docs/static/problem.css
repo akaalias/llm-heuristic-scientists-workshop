@@ -79,10 +79,6 @@
 .approach-cycle{flex:0 0 46%;max-width:470px;}
 .approach-cycle .cycle{max-width:none;margin:0;}
 .approach-cycle .cycle-cap{margin-top:6px;}
-@media (max-width:900px){
-  .approach{flex-direction:column;gap:18px;align-items:stretch;}
-  .approach-cycle{max-width:none;width:100%;}
-}
 
 /* ---- the loop, as a cycle (inline SVG) ----------------------------------- */
 .cycle{display:block;width:100%;max-width:520px;height:auto;margin:6px auto 4px;}
@@ -108,8 +104,3 @@
 .night-b{font-size:14px;line-height:1.55;color:var(--muted);margin-top:6px;text-wrap:pretty;}
 .nights.held .night{border-left-color:var(--accent);}
 .nights.held .night-tag{color:var(--accent);border-color:var(--accent);}
-
-@media (max-width:760px){
-  .line-row{grid-template-columns:1fr auto;gap:4px 12px;}
-  .ln-note{grid-column:1/-1;}
-}

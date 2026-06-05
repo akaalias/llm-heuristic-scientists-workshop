@@ -37,7 +37,8 @@ from urllib.parse import parse_qs, quote, urlparse
 
 from problem_definition.model import (RESTAURANT, RECIPES, MENU, MENU_SECTIONS,
                                       TEAM_SIDES, STATION_CAPACITY)
-from problem_definition.scenarios import TRAINING_BATTERY, HIDDEN_TEST, STRESS
+from problem_definition.scenarios import (TRAINING_BATTERY, HIDDEN_TEST, STRESS,
+                                          SUNDAY_GRAVY)
 
 HERE        = Path(__file__).parent
 TEMPLATE    = HERE / "index.html"
@@ -598,11 +599,11 @@ def _lat_key(v) -> float:
 
 # sample name (e.g. "training_v2") → human title ("The Early Rush"), for labels.
 SCENARIO_TITLES = {sc.name: (getattr(sc, "title", "") or sc.name)
-                   for sc in [*TRAINING_BATTERY, HIDDEN_TEST, STRESS]}
+                   for sc in [*TRAINING_BATTERY, HIDDEN_TEST, STRESS, SUNDAY_GRAVY]}
 
 # sample name → the narrative blurb (the floor's-eye description of the night).
 SCENARIO_BLURBS = {sc.name: (getattr(sc, "blurb", "") or "")
-                   for sc in [*TRAINING_BATTERY, HIDDEN_TEST, STRESS]}
+                   for sc in [*TRAINING_BATTERY, HIDDEN_TEST, STRESS, SUNDAY_GRAVY]}
 
 
 def scenario_title(name: str) -> str:
@@ -1103,8 +1104,10 @@ STRESS_TAG = {
     "training_v3": "Grill",
     "training_v4": "Range",
     "training_v5": "Both walls",
+    "training_v6": "Fryer",
     "hidden_test": "Mixed",
     "stress":      "Grill",
+    "sunday_gravy": "Range",
 }
 
 
@@ -1177,7 +1180,7 @@ def render_approach_page(template: str, csv_path: Path) -> str:
             .replace("<!--NAV-->",            render_nav("approach"))
             .replace("<!--NAME-->",           html.escape(RESTAURANT["name"]))
             .replace("<!--NIGHTS_TRAIN-->",   render_nights(TRAINING_BATTERY))
-            .replace("<!--NIGHTS_HELDOUT-->", render_nights([HIDDEN_TEST, STRESS])))
+            .replace("<!--NIGHTS_HELDOUT-->", render_nights([HIDDEN_TEST, STRESS, SUNDAY_GRAVY])))
 
 
 def render_grid_page(template: str, csv_path: Path) -> str:

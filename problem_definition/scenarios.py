@@ -17,10 +17,10 @@ spread of bottleneck archetypes:
 
 The point is generalisation: a heuristic that only learns "protect the grill"
 must lose on the range-heavy and fryer-heavy nights, so the winners have to
-reason about whichever station is actually the wall. The two leaderboard
-nights, HIDDEN_TEST and STRESS, are deliberately HELD OUT of the training
-battery — they're the unseen covers that tell us whether a method generalised
-or merely memorised.
+reason about whichever station is actually the wall. The leaderboard nights —
+HIDDEN_TEST, STRESS, and SUNDAY_GRAVY — are deliberately HELD OUT of the
+training battery: they're the unseen covers that tell us whether a method
+generalised or merely memorised.
 """
 
 from problem_definition.model import STATION_CAPACITY
@@ -49,7 +49,7 @@ TRAINING = Scenario(
 )
 
 
-# ---- the two held-out leaderboard nights (NOT in the training battery) ------
+# ---- the held-out leaderboard nights (NOT in the training battery) ----------
 
 HIDDEN_TEST = Scenario(
     name    = "hidden_test",
@@ -86,6 +86,27 @@ STRESS = Scenario(
         OrderSpec(id=3, arrival=2, due=28, dishes=["burger"]),
         OrderSpec(id=4, arrival=4, due=32, dishes=["steak"]),
         OrderSpec(id=5, arrival=6, due=35, dishes=["burger", "salad"]),
+    ],
+)
+
+# Range-heavy with tight deadlines — the held-out mirror of the Saturday Crush:
+# where STRESS buries the grill, this buries Marco's range. Tests whether a
+# method protects WHICHEVER wall is the night's bottleneck, not just the grill.
+SUNDAY_GRAVY = Scenario(
+    name    = "sunday_gravy",
+    title   = "The Sunday Gravy",
+    blurb   = ("A held-out Sunday the kitchen never rehearsed on: a slow, full room "
+               "that all wants comfort — pasta and soup, ticket after ticket. Marco's "
+               "range is buried while the grill stays cold, the mirror image of "
+               "Saturday's crush, and the test of whether a method protects whichever "
+               "wall is the bottleneck."),
+    kitchen = dict(STATION_CAPACITY),
+    orders  = [
+        OrderSpec(id=1, arrival=0, due=26, dishes=["pasta", "salad"]),
+        OrderSpec(id=2, arrival=0, due=28, dishes=["soup"]),
+        OrderSpec(id=3, arrival=3, due=32, dishes=["pasta"]),
+        OrderSpec(id=4, arrival=6, due=36, dishes=["soup",  "fries"]),
+        OrderSpec(id=5, arrival=9, due=40, dishes=["pasta", "salad"]),
     ],
 )
 
@@ -173,12 +194,33 @@ TRAINING_V5 = Scenario(
     ],
 )
 
+# A wave of bar tables wanting something quick: basket after basket of fries
+# and snacks back-to-back. The grill barely fires, but the fryer is slammed and
+# every plate funnels through the single pass. Punishes a grill-first heuristic.
+TRAINING_V6 = Scenario(
+    name    = "training_v6",
+    title   = "The Bar Rush",
+    blurb   = ("A wave of bar tables off the late train, all wanting something quick "
+               "with a drink — basket after basket of fries, the odd snack to share. "
+               "The grill barely fires, but the fryer never rests and every plate "
+               "funnels through the single pass."),
+    kitchen = dict(STATION_CAPACITY),
+    orders  = [
+        OrderSpec(id=1, arrival=0, due=18, dishes=["fries", "salad"]),
+        OrderSpec(id=2, arrival=0, due=20, dishes=["fries"]),
+        OrderSpec(id=3, arrival=2, due=22, dishes=["fries", "soup"]),
+        OrderSpec(id=4, arrival=4, due=25, dishes=["fries", "salad"]),
+        OrderSpec(id=5, arrival=6, due=28, dishes=["fries"]),
+        OrderSpec(id=6, arrival=8, due=30, dishes=["burger", "fries"]),
+    ],
+)
 
-ALL_SCENARIOS = [TRAINING, HIDDEN_TEST, STRESS]   # the leaderboard set
+
+ALL_SCENARIOS = [TRAINING, HIDDEN_TEST, STRESS, SUNDAY_GRAVY]   # the leaderboard set
 
 # A heuristic that only wins on TRAINING is overfit. The discovery loop scores
 # each proposal on the AVERAGE lateness across this battery of bottleneck
 # archetypes, so the winners have to generalise. TRAINING stays first so the
 # schedule diagram is always drawn from the same, familiar example.
-TRAINING_VARIANTS = [TRAINING_V2, TRAINING_V3, TRAINING_V4, TRAINING_V5]
+TRAINING_VARIANTS = [TRAINING_V2, TRAINING_V3, TRAINING_V4, TRAINING_V5, TRAINING_V6]
 TRAINING_BATTERY  = [TRAINING, *TRAINING_VARIANTS]   # TRAINING first = Gantt source

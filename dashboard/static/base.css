@@ -44,10 +44,6 @@ body{
 .nav a:hover{border-bottom-color:var(--accent);}
 .nav .nav-sub{margin-left:15px;}    /* the research views, nested under "Our approach" */
 .nav .nav-here{color:var(--ink);cursor:default;}  /* current page — shown & marked active, not a link */
-@media (max-width:1100px){
-  .nav{background:rgba(255,255,248,.92);padding:8px 12px;border-radius:3px;
-       box-shadow:0 1px 6px rgba(45,33,15,.10);}
-}
 
 /* shared lead-in on the research pages — ties each back to the restaurant and the
    problem. Outer box matches the header measure so its left edge lines up. */

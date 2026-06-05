@@ -94,8 +94,6 @@ tr.detail-row > td{background:#fcfbf2;border-bottom:1.5px solid var(--ink);paddi
               padding:24px 30px 30px;align-items:flex-start;}
 .d-meta{flex:0 0 31%;}
 .d-main{flex:1 1 0;min-width:0;}
-@media(max-width:920px){.detail-inner{flex-direction:column;width:auto;gap:18px;}
-                        .d-meta{flex-basis:auto;}}
 
 /* meta rail */
 .d-meta{display:flex;flex-direction:column;gap:18px;}

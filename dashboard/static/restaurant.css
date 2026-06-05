@@ -41,7 +41,6 @@
 .scene-row .prose,.scene-row .corner-text{flex:1 1 auto;min-width:0;}
 .scene-fig{flex:0 0 38%;max-width:360px;margin:0;}
 .scene-fig--left{order:-1;}            /* exterior sits left of the corner text */
-@media (max-width:760px){.scene-row{flex-direction:column;}.scene-fig{max-width:none;width:100%;}}
 
 /* ---- à la carte menu ---------------------------------------------------- */
 .menu-group{margin-bottom:26px;}

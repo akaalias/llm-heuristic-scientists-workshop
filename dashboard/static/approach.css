@@ -36,12 +36,19 @@
             font-feature-settings:"smcp" 1;}
 .chuman-sub{fill:var(--muted);font:italic 13px/1 var(--serif);}
 
+/* ---- the domain expert, feeding the scoring battery into the loop --------- */
+/* a muted teal, set apart from the supervisor's rust. */
+.carrow-e{fill:none;stroke:#3f6e6e;stroke-width:1.8;}
+.cexpert{fill:#3f6e6e;}
+.cexpert-lbl{fill:#3f6e6e;font:600 15px/1 var(--serif);letter-spacing:.05em;
+             font-feature-settings:"smcp" 1;}
+.cexpert-sub{fill:var(--muted);font:italic 13px/1 var(--serif);}
+
 /* ---- the pivot illustration (sits right of the patience text) ------------ */
 /* mirrors .approach-cycle so the figure column matches the loop section. */
 .approach-fig{flex:0 0 46%;max-width:470px;}
 .approach-fig .pivot{display:block;width:100%;height:auto;margin:2px auto 0;}
 .approach-fig .cycle-cap{margin-top:6px;}
-@media (max-width:900px){.approach-fig{max-width:none;width:100%;}}
 
 .pivot-axis{stroke:var(--rule);stroke-width:1;}
 .pivot-best{fill:none;stroke:var(--muted);stroke-width:1.6;
