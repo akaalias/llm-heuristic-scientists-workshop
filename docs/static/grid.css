@@ -57,9 +57,29 @@
 .ov-note strong{font-style:normal;font-weight:600;color:var(--ink);}
 .ov-met{color:var(--success);font-style:normal;}
 .ov-miss{color:var(--accent);font-style:normal;}
-.ov-layer,.ov-due-layer,.ov-axis{grid-area:1/1;}
+.ov-layer,.ov-champ-layer,.ov-due-layer,.ov-axis{grid-area:1/1;}
 .ov-layer{opacity:var(--ov-op,1);}
 .ov-layer svg{width:100%;height:auto;display:block;}
+/* the champion's schedule, once more above the stack: never blended, full
+   opacity — hollow black outlines, each cased in a hairline paper halo: lost
+   on the pale Normal stack, it is what separates the outline from the stack
+   where Multiply has driven the consensus to black. */
+/* isolation: the bar layers are stacking contexts (opacity < 1) and so paint
+   AFTER plain in-flow siblings whatever the DOM order — without its own
+   stacking context this layer would sit underneath the stack, not on top. */
+.ov-champ-layer{mix-blend-mode:normal;isolation:isolate;pointer-events:none;}
+.ov-champ-layer svg{width:100%;height:auto;display:block;}
+.ov-champ-halo{fill:none;stroke:var(--paper);stroke-width:3.75;}
+.ov-champ-bar{fill:none;stroke:#000;stroke-width:1.75;}
+.ov-stage[data-champ="off"] .ov-champ-layer{display:none;}
+.ov-toggles{display:flex;align-items:baseline;gap:16px;margin-left:10px;}
+/* gray: every bar the same neutral, so the order hues drop out and darkness
+   reads as pure agreement. (CSS wins over the rects' fill/stroke attributes.) */
+.ov-stage[data-gray="on"] .ov-layer rect{fill:#9a9a9a;stroke:#3a3a3a;}
+/* Multiply darkens geometrically, so it wants a gray as light as the pale order
+   tints it replaces — the mid gray above would hit black after a few layers. */
+.ov-stage[data-gray="on"][data-blend="multiply"] .ov-layer rect{fill:#d6d6d6;stroke:#6a6a6a;}
+.ov-champ-key{font-style:normal;font-weight:600;color:var(--ink);}
 /* deadlines always composite Normal (never multiply) so the green/red stays
    true; painted above the bars and fixed at the normal per-layer opacity. */
 .ov-due-layer{opacity:var(--ov-op-due,1);mix-blend-mode:normal;pointer-events:none;}
