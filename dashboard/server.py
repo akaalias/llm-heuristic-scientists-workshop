@@ -111,6 +111,17 @@ def iter_classified(rows: list[dict]):
             yield r, "discarded"
 
 
+def champion_key(rows: list[dict]) -> str | None:
+    """Row key of the current champion: the lowest total_lateness so far, the
+    MOST RECENT on ties (the last 'kept' row) — the same rule a new discovery
+    run uses to pick what it carries over. None if nothing has scored yet."""
+    key = None
+    for r, kind in iter_classified(rows):
+        if kind == "kept":
+            key = _row_key(r)
+    return key
+
+
 def _status_cell(raw: str) -> str:
     """Render a status value. 'success' → ink small-caps; 'failed:Err' → rust
     small-caps with the error class spelled out."""
@@ -564,15 +575,22 @@ def overlay_axis(labels: list[str], horizon: float) -> str:
 OV_MET, OV_MISS = "#4a7a3a", "#8c2f1f"
 
 
-def overlay_bars(sched: dict, labels: list[str], base: dict[str, int], horizon: float) -> str:
+def overlay_bars(sched: dict, labels: list[str], base: dict[str, int], horizon: float,
+                 champion: bool = False) -> str:
     """One experiment's bars, placed on the canonical rows at the shared time
-    scale — a bar-only layer meant to be stacked under a blend mode."""
+    scale — a bar-only layer meant to be stacked under a blend mode.
+
+    With `champion`, the same bars are drawn as the un-blended highlight layer:
+    hollow black outlines, so the champion's schedule reads against the stack
+    without hiding it. Each outline is cased in a paper halo to keep it visible
+    where the consensus has gone dark; the halos are all painted first so one
+    bar's halo never clips its neighbour's outline."""
     entries = sched.get("entries") or []
     H = OV_T + len(labels) * OV_ROWH + OV_B
     xf = _ov_x(horizon)
     color, pale = _order_palettes(entries)
     barH = OV_ROWH - 8
-    g = []
+    g, halos = [], []
     for st in sorted({e["station"] for e in entries}):
         sub = [e for e in entries if e["station"] == st]
         slot_of, _n = _pack_slots(sub)
@@ -581,9 +599,13 @@ def overlay_bars(sched: dict, labels: list[str], base: dict[str, int], horizon: 
             bx = xf(e["start"])
             bw = max(1.0, xf(e["end"]) - xf(e["start"]))
             oid = _order_of(e["step"])
-            g.append(f'<rect x="{bx:.1f}" y="{cy+4:.1f}" width="{bw:.1f}" height="{barH}" rx="1.5" '
-                     f'fill="{pale[oid]}" stroke="{color[oid]}" stroke-width="0.75"/>')
-    return _svg_wrap(g, "ov-bars-svg", OV_W, H)
+            box = f'x="{bx:.1f}" y="{cy+4:.1f}" width="{bw:.1f}" height="{barH}" rx="1.5"'
+            if champion:
+                halos.append(f'<rect class="ov-champ-halo" {box}/>')
+                g.append(f'<rect class="ov-champ-bar" {box}/>')
+            else:
+                g.append(f'<rect {box} fill="{pale[oid]}" stroke="{color[oid]}" stroke-width="0.75"/>')
+    return _svg_wrap(halos + g, "ov-champ-svg" if champion else "ov-bars-svg", OV_W, H)
 
 
 def overlay_deadlines(sched: dict, labels: list[str], horizon: float) -> str:
@@ -654,6 +676,7 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
                 order.append(name)
             groups[name].append((r, s))
 
+    champ = champion_key(rows)
     sections = []
     for name in order:
         items = sorted(groups[name], key=lambda rs: _lat_key(rs[1].get("lateness")))
@@ -663,6 +686,7 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
         # so bars register pixel-for-pixel and clusters emerge where they agree.
         labels, base, horizon = overlay_geometry([s for _r, s in items])
         bar_layers, due_layers = [], []
+        champ_layer = champ_note = champ_btn = ""
         for r, s in items:
             key = _row_key(r)
             title = r.get("title", "") or "Untitled"
@@ -675,6 +699,16 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
                 f'<span class="cell-lat">{html.escape(str(lat))}</span></div></a>')
             bar_layers.append(f'<div class="ov-layer">{overlay_bars(s, labels, base, horizon)}</div>')
             due_layers.append(f'<div class="ov-due-layer">{overlay_deadlines(s, labels, horizon)}</div>')
+            if key == champ:
+                # the champion stays in the blended stack too, and is drawn once
+                # more on top, un-blended, as outlines to compare against it
+                champ_layer = (f'<div class="ov-champ-layer">'
+                               f'{overlay_bars(s, labels, base, horizon, champion=True)}</div>')
+                champ_note = (f' <span class="ov-champ-key">Outlined in black</span>: the current '
+                              f'champion, #{html.escape(r.get("n", ""))} {html.escape(title)} '
+                              f'&mdash; {html.escape(str(lat))} late on this night.')
+                champ_btn = ('<button class="ov-mode ov-toggle is-on" type="button" '
+                             'data-ov-toggle="champ" aria-pressed="true">Champion</button>')
         nm_title = scenario_title(name)
         id_html = (f'<span class="sample-id">{html.escape(name)}</span>'
                    if nm_title != name else "")
@@ -710,7 +744,12 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
             f'<button class="ov-mode{" is-on" if i == 0 else ""}" type="button" '
             f'data-ov-mode="{m}" data-op="{op}">{html.escape(lbl)}</button>'
             for i, (m, lbl, op) in enumerate(modes))
-        toolbar = f'<div class="ov-modes" role="group" aria-label="Blend mode">{btns}</div>'
+        # on/off switches beside the blend modes: the champion outline, and a
+        # monochrome stack (every bar the same gray, so darkness is pure count).
+        gray_btn = ('<button class="ov-mode ov-toggle" type="button" '
+                    'data-ov-toggle="gray" aria-pressed="false">Gray</button>')
+        toolbar = (f'<div class="ov-modes" role="group" aria-label="Blend mode">{btns}'
+                   f'<span class="ov-toggles">{champ_btn}{gray_btn}</span></div>')
         modal = (
             f'<div class="ov-modal" id="{ov_id}" hidden>'
             f'<div class="ov-backdrop" data-ov-close></div>'
@@ -721,6 +760,7 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
             f'<button class="ov-close" type="button" data-ov-close aria-label="Close">&times;</button></header>'
             f'<div class="ov-stage" data-blend="normal" style="--ov-op:{normal_op};--ov-op-due:{1.0/n:.4f}">'
             f'{"".join(bar_layers)}'
+            f'{champ_layer}'
             f'{"".join(due_layers)}'
             f'<div class="ov-axis">{overlay_axis(labels, horizon)}</div>'
             f'</div>'
@@ -728,7 +768,7 @@ def render_grid(rows: list[dict], csv_dir: Path) -> str:
             f'agree the bars stack into solid blocks, lone choices stay faint. Each order&rsquo;s '
             f'deadline is a dashed line &mdash; <span class="ov-met">green where met</span>, '
             f'<span class="ov-miss">red where late</span>. <strong>Multiply</strong> drives the '
-            f'consensus toward black.</p>'
+            f'consensus toward black.{champ_note}</p>'
             f'</div></div>')
         sections.append(
             f'<section class="sample"><h2 class="sample-h">'

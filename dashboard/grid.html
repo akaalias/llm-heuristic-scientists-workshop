@@ -27,9 +27,17 @@
     const opener = e.target.closest("[data-ov-open]");
     if (opener) { const m = document.getElementById(opener.dataset.ovOpen); if (m) show(m); return; }
     if (e.target.closest("[data-ov-close]")) { hide(); return; }
+    const toggle = e.target.closest("[data-ov-toggle]");
+    if (toggle) {
+      const on = !toggle.classList.contains("is-on");
+      toggle.classList.toggle("is-on", on);
+      toggle.setAttribute("aria-pressed", on);
+      toggle.closest(".ov-dialog").querySelector(".ov-stage").dataset[toggle.dataset.ovToggle] = on ? "on" : "off";
+      return;
+    }
     const mode = e.target.closest("[data-ov-mode]");
     if (mode) {
-      const bar = mode.parentNode, stage = bar.parentNode.parentNode.querySelector(".ov-stage");
+      const bar = mode.parentNode, stage = mode.closest(".ov-dialog").querySelector(".ov-stage");
       bar.querySelectorAll("[data-ov-mode]").forEach(b => b.classList.toggle("is-on", b === mode));
       stage.dataset.blend = mode.dataset.ovMode;
       stage.style.setProperty("--ov-op", mode.dataset.op);
